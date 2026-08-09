@@ -1,0 +1,10 @@
+{
+  "name": "artisys-mercado-livre-publisher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel serverless para publicação de produtos no Mercado Livre",
+  "scripts": {
+    "check": "node --check api/_lib.js && node --check api/ml.js && node --check api/oauth.js && node --check src/config/environment.js && node --check src/core/http/mercadoLivreClient.js && node --check src/modules/mercado-livre/publications/payloadBuilder.js && node --check src/modules/mercado-livre/publications/publicationService.js && node --check src/modules/mercado-livre/pictures/pictureService.js"
+  },
+  "engines": { "node": ">=18" }
+}
