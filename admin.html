@@ -105,7 +105,8 @@ const $=id=>document.getElementById(id);
 function msg(el,text,kind='info'){el.innerHTML=`<div class="status ${kind}">${text}</div>`}
 async function jfetch(url,opts={}){const r=await fetch(url,{credentials:'same-origin',...opts});let data;try{data=await r.json()}catch{data={text:await r.text()}}if(!r.ok)throw Object.assign(new Error(data.error||data.message||`HTTP ${r.status}`),{data,status:r.status});return data}
 async function init(){
-  catalog=await (await fetch('/catalog.json')).json();
+  const [catalogBase,catalogNovos]=await Promise.all([fetch('/catalog.json').then(r=>r.json()),fetch('/catalog-novos.json').then(r=>r.json())]);
+  catalog=[...catalogBase,...catalogNovos];
   $('sku').innerHTML=catalog.map(x=>`<option value="${x.sku}">${x.sku} — ${x.product_name}</option>`).join('');
   try{const s=await jfetch('/api/auth?op=status'); if(s.authenticated){showPanel()}else{showLogin()}}catch{showLogin()}
 }

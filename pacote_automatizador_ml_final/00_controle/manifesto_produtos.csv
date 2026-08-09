@@ -1,0 +1,10 @@
+sku,produto,arquivo_zip,anuncio_md,pasta_imagens,preco_sugerido,status
+KIT-UAN-EXP-001,Kit Nutri UAN Express,01_produtos_zip/KIT-UAN-EXP-001_Kit_Nutri_UAN_Express.zip,03_anuncios_md/KIT-UAN-EXP-001/anuncio_mercado_livre.md,02_imagens_por_sku/KIT-UAN-EXP-001,47-97,pronto_para_postagem_inicial
+FIC-NUTRI-PACK-002,Pack de Fichas Nutricionais,01_produtos_zip/FIC-NUTRI-PACK-002_Pack_Fichas_Nutricionais.zip,03_anuncios_md/FIC-NUTRI-PACK-002/anuncio_mercado_livre.md,02_imagens_por_sku/FIC-NUTRI-PACK-002,19-49,pronto_para_postagem_inicial
+PAT-CARD-PLAN-003,Template de Cardapio PAT,01_produtos_zip/PAT-CARD-PLAN-003_Template_Cardapio_PAT.zip,03_anuncios_md/PAT-CARD-PLAN-003/anuncio_mercado_livre.md,02_imagens_por_sku/PAT-CARD-PLAN-003,29-79,pronto_para_postagem_inicial
+REL-OBRA-HID-004,Template de Relatorio de Obra Hidraulica,01_produtos_zip/REL-OBRA-HID-004_Template_Relatorio_Obra_Hidraulica.zip,03_anuncios_md/REL-OBRA-HID-004/anuncio_mercado_livre.md,02_imagens_por_sku/REL-OBRA-HID-004,29-79,pronto_para_postagem_inicial
+SUP-EST-PREC-005,Planilha de Estoque e Precificacao de Suplementos,01_produtos_zip/SUP-EST-PREC-005_Planilha_Estoque_Precificacao_Suplementos.zip,03_anuncios_md/SUP-EST-PREC-005/anuncio_mercado_livre.md,02_imagens_por_sku/SUP-EST-PREC-005,29-69,pronto_para_postagem_inicial
+AQUA-PROJ-006,Controle de Aquaponia e Tilapia,01_produtos_zip/AQUA-PROJ-006_Controle_Aquaponia_Tilapia.zip,03_anuncios_md/AQUA-PROJ-006/anuncio_mercado_livre.md,02_imagens_por_sku/AQUA-PROJ-006,29-79,pronto_para_postagem_inicial
+REVIT-TEXT-MINI-007,Mini Guia Revit Texturas,01_produtos_zip/REVIT-TEXT-MINI-007_Mini_Guia_Revit_Texturas.zip,03_anuncios_md/REVIT-TEXT-MINI-007/anuncio_mercado_livre.md,02_imagens_por_sku/REVIT-TEXT-MINI-007,19-39,pronto_para_postagem_inicial
+NUTRI-MENT-ATL-008,Guia Nutricao e Saude Mental para Atletas,01_produtos_zip/NUTRI-MENT-ATL-008_Guia_Nutricao_Saude_Mental_Atletas.zip,03_anuncios_md/NUTRI-MENT-ATL-008/anuncio_mercado_livre.md,02_imagens_por_sku/NUTRI-MENT-ATL-008,19-49,pronto_para_postagem_inicial
+

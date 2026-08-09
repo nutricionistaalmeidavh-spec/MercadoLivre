@@ -1,5 +1,5 @@
 const L = require("./_lib");
-const catalog = require("../catalog.json");
+const catalog = [...require("../catalog.json"), ...require("../catalog-novos.json")];
 const { buildPayload } = require("../src/modules/mercado-livre/publications/payloadBuilder");
 const { uploadProductPictures } = require("../src/modules/mercado-livre/pictures/pictureService");
 const { publish } = require("../src/modules/mercado-livre/publications/publicationService");
