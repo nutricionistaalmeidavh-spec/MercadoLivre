@@ -8,9 +8,12 @@ on:
     paths:
       - "api/**"
       - "src/**"
+      - "cloudflare/**"
       - "tests/**"
       - "server.js"
       - "package.json"
+      - ".assetsignore"
+      - "migration.html"
 
 jobs:
   verify:
