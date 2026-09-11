@@ -5,6 +5,11 @@ CREATE TABLE IF NOT EXISTS ml_tokens (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS token_locks (
+  seller_id TEXT PRIMARY KEY,
+  locked_until INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS webhook_events (
   event_key TEXT PRIMARY KEY,
   topic TEXT NOT NULL,
