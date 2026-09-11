@@ -11,38 +11,30 @@ async function fetchGuide(packId, sellerId) {
   return { guide, caps };
 }
 
-function findOtherOption(value) {
+function findOption(value, optionId) {
   if (!value || typeof value !== "object") return null;
-  if (value.option_id === "OTHER") return value;
+  if (value.option_id === optionId) return value;
   for (const child of Object.values(value)) {
     if (Array.isArray(child)) {
       for (const entry of child) {
-        const found = findOtherOption(entry);
+        const found = findOption(entry, optionId);
         if (found) return found;
       }
     } else if (child && typeof child === "object") {
-      const found = findOtherOption(child);
+      const found = findOption(child, optionId);
       if (found) return found;
     }
   }
   return null;
 }
 
-function findCap(value) {
-  if (!value || typeof value !== "object") return null;
-  if (typeof value.cap_available === "number") return value.cap_available;
-  for (const child of Object.values(value)) {
-    if (Array.isArray(child)) {
-      for (const entry of child) {
-        const found = findCap(entry);
-        if (found != null) return found;
-      }
-    } else if (child && typeof child === "object") {
-      const found = findCap(child);
-      if (found != null) return found;
-    }
-  }
-  return null;
+function findOtherOption(value) {
+  return findOption(value, "OTHER");
 }
 
-module.exports = { fetchGuide, findOtherOption, findCap };
+function findCapForOption(value, optionId = "OTHER") {
+  const option = findOption(value, optionId);
+  return option && typeof option.cap_available === "number" ? option.cap_available : null;
+}
+
+module.exports = { fetchGuide, findOption, findOtherOption, findCapForOption };
