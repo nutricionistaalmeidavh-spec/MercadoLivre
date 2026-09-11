@@ -1,4 +1,4 @@
-const { findOtherOption, findCap } = require("./communicationReasons");
+const { findOtherOption, findCapForOption } = require("./communicationReasons");
 
 function evaluatePolicy({ guideResponse, capsResponse, text }) {
   if (!guideResponse?.ok) {
@@ -11,7 +11,7 @@ function evaluatePolicy({ guideResponse, capsResponse, text }) {
   const option = findOtherOption(guideResponse.data);
   if (!option) return { allowed: false, reason: "OTHER_NOT_AVAILABLE" };
 
-  const cap = findCap(capsResponse.data);
+  const cap = findCapForOption(capsResponse.data, "OTHER");
   if (cap == null || cap < 1) return { allowed: false, reason: "NO_MESSAGE_CAP" };
 
   const charLimit = Number(option.char_limit || guideResponse.data?.char_limit || 350);
