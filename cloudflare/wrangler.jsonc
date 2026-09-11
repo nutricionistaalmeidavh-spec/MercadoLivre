@@ -26,13 +26,5 @@
     "ML_AUTOMATION_MODE": "dry-run",
     "ML_AFTER_SALE_MESSAGE": "Olá! Recebemos seu pedido e já estamos acompanhando por aqui. Obrigado pela compra. Se precisar falar sobre este pedido, pode usar este chat.",
     "ML_JOB_MAX_ATTEMPTS": "5"
-  },
-  "secrets": {
-    "required": [
-      "ML_CLIENT_SECRET",
-      "TOKEN_ENCRYPTION_KEY",
-      "ADMIN_PASSWORD",
-      "ADMIN_SESSION_SECRET"
-    ]
   }
 }
