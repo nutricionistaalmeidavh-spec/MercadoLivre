@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Artisys — Migração Mercado Livre</title>
+<style>body{font-family:system-ui;margin:0;background:#f4f7fb;color:#0f172a}.card{max-width:680px;margin:60px auto;background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px}.brand{font-weight:900;color:#12623a}.warn,.ok,.err{padding:12px;border-radius:10px;margin:14px 0}.warn{background:#fef3c7;color:#92400e}.ok{background:#dcfce7;color:#166534}.err{background:#fee2e2;color:#991b1b}button{border:0;border-radius:10px;padding:12px 15px;font-weight:800;background:#12623a;color:#fff;cursor:pointer}</style>
+</head>
+<body><div class="card"><div class="brand">ARTISYS • MERCADO LIVRE</div><h1>Migrar conexão para Cloudflare</h1><p>Abra esta página no domínio antigo da Vercel depois de entrar no painel administrativo. O token será enviado diretamente da Vercel para o Worker, sem aparecer nesta página.</p><div class="warn">Use uma única vez, depois que o Worker, o D1 e o segredo temporário de migração estiverem configurados.</div><button id="go">Migrar conexão</button><div id="result"></div></div>
+<script>
+const go=document.getElementById('go'),result=document.getElementById('result');
+go.onclick=async()=>{go.disabled=true;result.className='warn';result.textContent='Migrando...';try{const r=await fetch('/api/migrate-to-cloudflare',{method:'POST',credentials:'same-origin'});const d=await r.json();if(!r.ok)throw new Error(d.error+(d.details?' — '+d.details:''));result.className='ok';result.textContent=`Conexão migrada para ${d.target_host}. Seller ${d.seller_id}${d.nickname?' — '+d.nickname:''}.`;go.textContent='Migração concluída';}catch(e){result.className='err';result.textContent=e.message;go.disabled=false;}}
+</script></body></html>
