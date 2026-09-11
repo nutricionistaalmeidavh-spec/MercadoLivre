@@ -1,12 +1,17 @@
 node_modules/
 .env
-.env.local
-.vercel/
-*.log
-.DS_Store
+.env.*
+!.env.example
+
+# Produtos de entrega e arquivos editáveis não devem ser publicados no GitHub público.
+pacote_automatizador_ml_final/01_produtos_zip/
+pacote_automatizador_ml_final/04_planilhas_editaveis/
 
 # Artisys Mercado Livre automation runtime
 data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.log
+.vercel/
+.DS_Store
