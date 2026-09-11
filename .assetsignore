@@ -1,0 +1,9 @@
+*
+!index.html
+!admin.html
+!catalog.json
+!catalog-novos.json
+!images/
+!images/**
+!mercadolivre/
+!mercadolivre/**
