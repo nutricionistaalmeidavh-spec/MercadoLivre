@@ -6,24 +6,32 @@ const MAX_ATTEMPTS = Number(process.env.ML_JOB_MAX_ATTEMPTS || 5);
 function claimNext() {
   const db = migrate();
   const now = Date.now();
-  const claim = db.transaction(() => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
     const row = db.prepare(`
       SELECT * FROM webhook_events
        WHERE status = 'PENDING' AND available_at <= ?
        ORDER BY created_at ASC
        LIMIT 1
     `).get(now);
-    if (!row) return null;
+    if (!row) {
+      db.exec("COMMIT");
+      return null;
+    }
     const updated = db.prepare(`
       UPDATE webhook_events
          SET status='PROCESSING', attempts=attempts+1, updated_at=?
        WHERE event_key=? AND status='PENDING'
     `).run(now, row.event_key);
-    return updated.changes === 1
+    const claimed = updated.changes === 1
       ? db.prepare("SELECT * FROM webhook_events WHERE event_key=?").get(row.event_key)
       : null;
-  });
-  return claim();
+    db.exec("COMMIT");
+    return claimed;
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
 }
 
 function backoffMs(attempt) {
