@@ -8,7 +8,7 @@
   "assets": {
     "directory": "../",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/admin", "/admin/", "/admin.html", "/system", "/system/", "/publisher", "/publisher/"]
+    "run_worker_first": ["/api/*", "/admin", "/admin/", "/admin.html", "/admin-operations.js", "/system", "/system/", "/publisher", "/publisher/"]
   },
   "d1_databases": [
     {
