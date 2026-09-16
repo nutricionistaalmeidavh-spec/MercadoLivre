@@ -8,6 +8,7 @@ import { handlePromotionsApi } from "./promotions.mjs";
 import { handleOperationsApi } from "./operations.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
+const ADMIN_OPERATIONS_VERSION = "1.6.1";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -213,18 +214,34 @@ async function handleHealth(env) {
   }
 }
 
+async function serveOperationsScript(request, env) {
+  const url = new URL(request.url);
+  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-operations.js`, request));
+  if (!asset.ok) return asset;
+  const headers = new Headers(asset.headers);
+  headers.set("content-type", "application/javascript; charset=utf-8");
+  headers.set("cache-control", "no-store, max-age=0");
+  headers.set("x-artisys-ui-build", ADMIN_OPERATIONS_VERSION);
+  return new Response(await asset.text(), { status: 200, headers });
+}
+
 async function serveAdmin(request, env) {
   const url = new URL(request.url);
   const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
   if (!asset.ok) return asset;
   let html = await asset.text();
-  if (!html.includes('/admin-operations.js')) html = html.replace('</body>', '<script src="/admin-operations.js"></script></body>');
+  html = html.replaceAll("Sem resposta", "Sem automação");
+  html = html.replaceAll("anúncios para revisar", "anúncios sem regra automática");
+  html = html.replaceAll("sem resposta", "sem automação");
+  if (!html.includes('/admin-operations.js')) html = html.replace('</body>', `<script src="/admin-operations.js?v=${ADMIN_OPERATIONS_VERSION}"></script></body>`);
+  else html = html.replace(/\/admin-operations\.js(?:\?v=[^\"']*)?/g, `/admin-operations.js?v=${ADMIN_OPERATIONS_VERSION}`);
   if (!html.includes('href="/system"')) {
     html = html.replace('<div class="more-grid">', '<div class="more-grid"><a class="more-link" href="/system"><div><strong>Sistema e diagnóstico</strong><span>Saúde, configuração, fila e logs operacionais.</span></div><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m9 18 6-6-6-6"/></svg></a>');
   }
   const headers = new Headers(asset.headers);
   headers.set("content-type", "text/html; charset=utf-8");
-  headers.set("cache-control", "no-store");
+  headers.set("cache-control", "no-store, max-age=0");
+  headers.set("x-artisys-ui-build", ADMIN_OPERATIONS_VERSION);
   return new Response(html, { status: 200, headers });
 }
 
@@ -236,7 +253,8 @@ async function serveSystem(request, env) {
   if (!asset.ok) return asset;
   const headers = new Headers(asset.headers);
   headers.set("content-type", "text/html; charset=utf-8");
-  headers.set("cache-control", "no-store");
+  headers.set("cache-control", "no-store, max-age=0");
+  headers.set("x-artisys-ui-build", ADMIN_OPERATIONS_VERSION);
   return new Response(await asset.text(), { status: 200, headers });
 }
 
@@ -264,6 +282,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/admin" || url.pathname === "/admin/" || url.pathname === "/admin.html") return await serveAdmin(request, env);
+      if (url.pathname === "/admin-operations.js") return await serveOperationsScript(request, env);
       if (url.pathname === "/system" || url.pathname === "/system/") return await serveSystem(request, env);
       if (url.pathname === "/publisher" || url.pathname === "/publisher/") return await servePublisher(request, env);
       if (url.pathname === "/api/auth") return await handleAuth(request, env);
