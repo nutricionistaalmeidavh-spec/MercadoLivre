@@ -3,6 +3,8 @@ import { drainQueue } from "./automation.mjs";
 import { enqueueWebhook, listSellers, queueStats, saveToken } from "./repository.mjs";
 import { handlePublisherApi } from "./publisher.mjs";
 import { handleMessageRulesApi } from "./message-rules.mjs";
+import { handleOrdersApi } from "./orders.mjs";
+import { handlePromotionsApi } from "./promotions.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -147,6 +149,24 @@ async function handleMessageRules(request, env) {
   return json(result);
 }
 
+async function handleOrders(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const sellerId = await resolveSellerId(env);
+  const result = await handleOrdersApi(env, request, sellerId);
+  if (result?.error) return json({ error: result.error, details: result.details }, result.status || 400);
+  return json(result);
+}
+
+async function handlePromotions(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const sellerId = await resolveSellerId(env);
+  const result = await handlePromotionsApi(env, request, sellerId);
+  if (result?.error) return json({ error: result.error, details: result.details }, result.status || 400);
+  return json(result);
+}
+
 async function handleWebhook(request, env, ctx) {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   const payload = await request.json().catch(() => null);
@@ -186,7 +206,14 @@ async function handleHealth(env) {
 
 async function serveAdmin(request, env) {
   const url = new URL(request.url);
-  return env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
+  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
+  if (!asset.ok) return asset;
+  let html = await asset.text();
+  if (!html.includes('/admin-operations.js')) html = html.replace('</body>', '<script src="/admin-operations.js"></script></body>');
+  const headers = new Headers(asset.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  return new Response(html, { status: 200, headers });
 }
 
 async function servePublisher(request, env) {
@@ -218,6 +245,8 @@ export default {
       if (url.pathname === "/api/oauth") return await handleOAuth(request, env);
       if (url.pathname === "/api/ml") return await handleMl(request, env);
       if (url.pathname === "/api/message-rules") return await handleMessageRules(request, env);
+      if (url.pathname === "/api/orders") return await handleOrders(request, env);
+      if (url.pathname === "/api/promotions") return await handlePromotions(request, env);
       if (url.pathname === "/api/webhook") return await handleWebhook(request, env, ctx);
       if (url.pathname === "/api/automation") return await handleAutomationStatus(request, env);
       if (url.pathname === "/api/health") return await handleHealth(env);
