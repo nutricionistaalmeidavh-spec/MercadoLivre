@@ -5,6 +5,14 @@
   "compatibility_date": "2026-09-10",
   "compatibility_flags": ["nodejs_compat"],
   "keep_vars": true,
+  "secrets": {
+    "required": [
+      "ML_CLIENT_SECRET",
+      "TOKEN_ENCRYPTION_KEY",
+      "ADMIN_PASSWORD",
+      "ADMIN_SESSION_SECRET"
+    ]
+  },
   "assets": {
     "directory": "../",
     "binding": "ASSETS",
