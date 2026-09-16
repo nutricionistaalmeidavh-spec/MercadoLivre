@@ -12,10 +12,18 @@ test("bootstrap mantém Cloudflare em dry-run e usa D1", () => {
 });
 
 test("bootstrap lê secrets existentes via Vercel env run sem arquivo local", () => {
-  assert.match(ps, /vercel@latest env run -e production/);
+  assert.match(ps, /"env", "run", "-e", "production"/);
   assert.doesNotMatch(ps, /env pull/);
   assert.match(helper, /process\.env\.ML_CLIENT_SECRET/);
   assert.match(helper, /process\.env\.ADMIN_PASSWORD/);
+});
+
+test("bootstrap tolera warnings do npm/vercel no stderr e valida exit code", () => {
+  assert.match(ps, /function Invoke-Vercel/);
+  assert.match(ps, /\$ErrorActionPreference = "Continue"/);
+  assert.match(ps, /\$exitCode = \$LASTEXITCODE/);
+  assert.match(ps, /if \(-not \$IgnoreFailure -and \$exitCode -ne 0\)/);
+  assert.match(ps, /Invoke-Vercel -Arguments @\("whoami"\) -IgnoreFailure -Quiet/);
 });
 
 test("bootstrap exige auditoria SUCCESS antes do cleanup", () => {
