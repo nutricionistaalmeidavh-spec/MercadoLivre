@@ -3,6 +3,7 @@ import {
   failWebhook,
   finishWebhook,
   getAutomationRun,
+  getItemMessageRules,
   upsertAutomationRun
 } from "./repository.mjs";
 import {
@@ -13,7 +14,7 @@ import {
 } from "./mercadolivre.mjs";
 
 const AUTOMATION_TYPE = "AFTER_SALE";
-const AUTOMATION_VERSION = "v1";
+const AUTOMATION_VERSION = "v2-item-rules";
 
 export function parseOrderId(resource) {
   const match = String(resource || "").match(/\/orders\/(\d+)/);
@@ -30,6 +31,33 @@ async function setRun(env, values) {
     automationType: AUTOMATION_TYPE,
     automationVersion: AUTOMATION_VERSION
   });
+}
+
+function buildMessageFromRules(order, rules) {
+  const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
+  const missing = order.itemIds.filter((itemId) => {
+    const rule = byId.get(String(itemId));
+    return !rule || !rule.enabled || !String(rule.message || "").trim();
+  });
+  if (missing.length) return { ok: false, reason: `NO_ENABLED_MESSAGE_RULE:${missing.join(",")}` };
+
+  const selected = order.itemIds.map((itemId) => byId.get(String(itemId)));
+  const uniqueMessages = [];
+  const seen = new Set();
+  for (const rule of selected) {
+    const message = String(rule.message || "").trim();
+    if (seen.has(message)) continue;
+    seen.add(message);
+    uniqueMessages.push(rule);
+  }
+
+  if (uniqueMessages.length === 1) return { ok: true, text: String(uniqueMessages[0].message).trim() };
+
+  const text = uniqueMessages.map((rule) => {
+    const title = String(rule.item_title || rule.item_id || "Produto").trim();
+    return `${title}:\n${String(rule.message || "").trim()}`;
+  }).join("\n\n");
+  return { ok: true, text };
 }
 
 export async function processOrderEvent(env, payload) {
@@ -53,8 +81,14 @@ export async function processOrderEvent(env, payload) {
     return { skipped: true, reason: eligibility.reason };
   }
 
-  const text = String(env.ML_AFTER_SALE_MESSAGE || "").trim();
-  const policy = await fetchMessagePolicy(env, order.packId, sellerId, text);
+  const rules = await getItemMessageRules(env, sellerId, order.itemIds);
+  const configured = buildMessageFromRules(order, rules);
+  if (!configured.ok) {
+    await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: configured.reason });
+    return { skipped: true, reason: configured.reason };
+  }
+
+  const policy = await fetchMessagePolicy(env, order.packId, sellerId, configured.text);
   if (!policy.allowed) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: policy.reason });
     return { skipped: true, reason: policy.reason };
@@ -62,8 +96,8 @@ export async function processOrderEvent(env, payload) {
 
   const mode = String(env.ML_AUTOMATION_MODE || "dry-run").toLowerCase();
   if (mode !== "production") {
-    await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "DRY_RUN", reason: "MESSAGE_WOULD_BE_SENT" });
-    return { dryRun: true, orderId, packId: order.packId, charLimit: policy.charLimit };
+    await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "DRY_RUN", reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" });
+    return { dryRun: true, orderId, packId: order.packId, itemIds: order.itemIds, charLimit: policy.charLimit };
   }
 
   const response = await sendOtherMessage(env, {
@@ -75,7 +109,7 @@ export async function processOrderEvent(env, payload) {
   });
   const messageId = response?.id || response?.message_id || null;
   await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SENT", reason: "MESSAGE_SENT", messageId });
-  return { sent: true, orderId, messageId };
+  return { sent: true, orderId, itemIds: order.itemIds, messageId };
 }
 
 export async function processOneQueuedEvent(env) {
