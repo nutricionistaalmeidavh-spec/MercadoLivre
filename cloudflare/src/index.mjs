@@ -1,9 +1,8 @@
 import { decryptJson, encryptJson, randomBase64Url, sha256Base64Url, timingSafeSecretEqual } from "./crypto.mjs";
 import { drainQueue } from "./automation.mjs";
-import { getValidToken } from "./token-service.mjs";
-import { mlRequest } from "./mercadolivre.mjs";
-import { enqueueWebhook, listSellers, queueStats, recordMigration, saveToken } from "./repository.mjs";
+import { enqueueWebhook, listSellers, queueStats, saveToken } from "./repository.mjs";
 import { handlePublisherApi } from "./publisher.mjs";
+import { handleMessageRulesApi } from "./message-rules.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -24,8 +23,7 @@ function parseCookies(request) {
 }
 
 function cookieHeader(name, value, maxAge) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "Secure", "SameSite=Lax", `Max-Age=${maxAge}`];
-  return parts.join("; ");
+  return [`${name}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "Secure", "SameSite=Lax", `Max-Age=${maxAge}`].join("; ");
 }
 
 async function isAdmin(request, env) {
@@ -47,7 +45,7 @@ async function resolveSellerId(env) {
   const sellers = await listSellers(env);
   if (sellers.length === 1) return String(sellers[0].seller_id);
   if (sellers.length === 0) throw new Error("Mercado Livre ainda não conectado no Cloudflare.");
-  throw new Error("Há mais de um seller conectado. Informe explicitamente o seller no painel antes de usar esta operação.");
+  throw new Error("Há mais de um seller conectado. Selecione o seller antes de usar esta operação.");
 }
 
 async function handleAuth(request, env) {
@@ -57,7 +55,10 @@ async function handleAuth(request, env) {
 
   if (op === "login" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
-    if (!env.ADMIN_PASSWORD || !(await timingSafeSecretEqual(body.password, env.ADMIN_PASSWORD))) {
+    if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) {
+      return json({ error: "ADMIN_PASSWORD/ADMIN_SESSION_SECRET não configurados no Cloudflare." }, 500);
+    }
+    if (!(await timingSafeSecretEqual(body.password, env.ADMIN_PASSWORD))) {
       return json({ error: "Senha incorreta." }, 403);
     }
     const session = await encryptJson({ ok: true, exp: Date.now() + 7 * 864e5 }, env.ADMIN_SESSION_SECRET);
@@ -130,15 +131,20 @@ async function handleOAuth(request, env) {
 async function handleMl(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
-  try {
-    const sellerId = await resolveSellerId(env);
-    const result = await handlePublisherApi(env, request, sellerId);
-    if (result.ok) return json(result.data, result.status || 200);
-    const data = result.data?.error ? result.data : { error: "Falha na API do Mercado Livre.", details: result.data };
-    return json(data, result.status || 500);
-  } catch (error) {
-    return json({ error: error.message }, error.statusCode || 500);
-  }
+  const sellerId = await resolveSellerId(env);
+  const result = await handlePublisherApi(env, request, sellerId);
+  if (result.ok) return json(result.data, result.status || 200);
+  const data = result.data?.error ? result.data : { error: "Falha na API do Mercado Livre.", details: result.data };
+  return json(data, result.status || 500);
+}
+
+async function handleMessageRules(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const sellerId = await resolveSellerId(env);
+  const result = await handleMessageRulesApi(env, request, sellerId);
+  if (result?.error) return json({ error: result.error }, result.status || 400);
+  return json(result);
 }
 
 async function handleWebhook(request, env, ctx) {
@@ -155,32 +161,6 @@ async function handleWebhook(request, env, ctx) {
   return json({ ok: true, accepted: queued.inserted, event_key: queued.eventKey });
 }
 
-async function handleMigrationImport(request, env) {
-  if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
-  const authorization = request.headers.get("authorization") || "";
-  const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  if (!env.ML_MIGRATION_SECRET || !(await timingSafeSecretEqual(supplied, env.ML_MIGRATION_SECRET))) {
-    return json({ error: "Migração não autorizada." }, 401);
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const token = body.token || {};
-  if (!token.user_id || !token.access_token || !token.refresh_token) return json({ error: "Token de migração incompleto." }, 400);
-  if (!token.expires_at) token.expires_at = Date.now() + Number(token.expires_in || 21600) * 1000;
-
-  await saveToken(env, token);
-  try {
-    const valid = await getValidToken(env, String(token.user_id));
-    const me = await mlRequest("/users/me", valid.access_token);
-    if (!me.ok || String(me.data?.id || "") !== String(token.user_id)) throw new Error("Token importado não validou o seller esperado.");
-    await recordMigration(env, token.user_id, "SUCCESS");
-    return json({ ok: true, seller_id: String(token.user_id), nickname: me.data?.nickname || null });
-  } catch (error) {
-    await recordMigration(env, token.user_id, "FAILED_VALIDATION");
-    return json({ error: "Token importado, mas a validação no Mercado Livre falhou. Reconexão pode ser necessária." }, 422);
-  }
-}
-
 async function handleAutomationStatus(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
@@ -189,7 +169,9 @@ async function handleAutomationStatus(request, env) {
     mode: String(env.ML_AUTOMATION_MODE || "dry-run"),
     sellers,
     queue,
-    callback: `${new URL(request.url).origin}/api/webhook`
+    callback: `${new URL(request.url).origin}/api/webhook`,
+    message_strategy: "per_item_rule",
+    default_send: false
   });
 }
 
@@ -202,21 +184,27 @@ async function handleHealth(env) {
   }
 }
 
+async function serveAdmin(request, env) {
+  const url = new URL(request.url);
+  return env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
-      if (url.pathname === "/api/auth") return handleAuth(request, env);
-      if (url.pathname === "/api/oauth") return handleOAuth(request, env);
-      if (url.pathname === "/api/ml") return handleMl(request, env);
-      if (url.pathname === "/api/webhook") return handleWebhook(request, env, ctx);
-      if (url.pathname === "/api/migration/import-token") return handleMigrationImport(request, env);
-      if (url.pathname === "/api/automation") return handleAutomationStatus(request, env);
-      if (url.pathname === "/api/health") return handleHealth(env);
-      return env.ASSETS.fetch(request);
+      if (url.pathname === "/admin" || url.pathname === "/admin/") return await serveAdmin(request, env);
+      if (url.pathname === "/api/auth") return await handleAuth(request, env);
+      if (url.pathname === "/api/oauth") return await handleOAuth(request, env);
+      if (url.pathname === "/api/ml") return await handleMl(request, env);
+      if (url.pathname === "/api/message-rules") return await handleMessageRules(request, env);
+      if (url.pathname === "/api/webhook") return await handleWebhook(request, env, ctx);
+      if (url.pathname === "/api/automation") return await handleAutomationStatus(request, env);
+      if (url.pathname === "/api/health") return await handleHealth(env);
+      return await env.ASSETS.fetch(request);
     } catch (error) {
       console.error("worker_error", { path: url.pathname, message: error.message });
-      return json({ error: "Erro interno." }, 500);
+      return json({ error: error.message || "Erro interno." }, Number(error.statusCode || 500));
     }
   },
 
