@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ArtiSys — Painel Mercado Livre</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1100px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.brand{font-weight:900;color:#12623a;font-size:20px}.muted{color:#64748b}.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 28px rgba(15,23,42,.05)}h1{font-size:28px;margin:5px 0}h2{font-size:20px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.wrap{padding:12px}.top{align-items:flex-start}.card{padding:16px}}
+label{font-size:13px;font-weight:800;color:#475569;display:block;margin:8px 0 5px}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:white;font-size:16px}textarea{min-height:90px}
+button,.btn{border:0;border-radius:10px;padding:12px 15px;font-weight:800;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block}.primary{background:#12623a;color:white}.secondary{background:#e8eef7;color:#16365c}.danger{background:#991b1b;color:#fff}.ghost{background:#f1f5f9;color:#334155}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.status{padding:10px 12px;border-radius:10px;font-size:14px}.ok{background:#dcfce7;color:#166534}.warn{background:#fef3c7;color:#92400e}.err{background:#fee2e2;color:#991b1b}.info{background:#dbeafe;color:#1e40af}
+.hidden{display:none!important}.skurow{display:flex;gap:10px;align-items:end}.skurow>div:first-child{flex:1}.result{white-space:pre-wrap;overflow-wrap:anywhere;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;max-height:380px;overflow:auto}
+.pred{border:1px solid #dbe3ee;border-radius:12px;padding:12px;margin:8px 0}.pred strong{display:block}.attrs{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.attrs{grid-template-columns:1fr}}.attr{border:1px solid #e2e8f0;border-radius:12px;padding:10px}.tag{display:inline-block;background:#edf2f7;color:#334155;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;margin-left:5px}
+hr{border:0;border-top:1px solid #e2e8f0;margin:18px 0}.price{font-size:24px;font-weight:900;color:#12623a}.pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eef2ff;color:#3730a3}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div><div class="brand">ARTISYS • ENG PLANILHAS</div><div class="muted">Painel privado do Mercado Livre • OAuth v6</div></div><button id="logoutBtn" class="ghost hidden">Sair</button></div>
+
+  <section id="loginCard" class="card">
+    <h1>Acesso ao painel</h1>
+    <p class="muted">Use a senha administrativa que você configurou nas Environment Variables do Vercel.</p>
+    <label>Senha administrativa</label><input id="adminPass" type="password" autocomplete="current-password">
+    <div class="actions"><button class="primary" onclick="login()">Entrar</button></div>
+    <div id="loginMsg"></div>
+  </section>
+
+  <main id="panel" class="hidden">
+    <section class="card">
+      <div class="grid">
+        <div><h2>Conexão Mercado Livre</h2><div id="mlStatus" class="status warn">Verificando...</div></div>
+        <div><h2>Fluxo</h2><div class="muted">OAuth → categoria → atributos → validar → publicar piloto</div></div>
+      </div>
+      <div class="actions">
+        <a id="connectBtn" class="btn primary" href="/api/oauth?op=start">Conectar Mercado Livre</a>
+        <button class="secondary" onclick="refreshStatus()">Atualizar conexão</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Produto</h2>
+      <div class="skurow"><div><label>SKU</label><select id="sku" onchange="loadSku()"></select></div></div>
+      <div id="productInfo"></div>
+    </section>
+
+    <section class="card">
+      <h2>Publicação em lote</h2>
+      <p class="muted">Selecione produtos com categoria definida. O painel validará e publicará um por vez, mostrando o resultado de cada SKU.</p>
+      <div class="actions"><button class="secondary" onclick="renderBatch()">Atualizar lista</button><button class="ghost" onclick="toggleBatch(true)">Selecionar válidos</button><button class="ghost" onclick="toggleBatch(false)">Limpar</button><button class="danger" onclick="publishBatch()">PUBLICAR SELECIONADOS</button></div>
+      <div id="batchList"></div><div id="batchMsg"></div><div id="batchResult" class="result hidden"></div>
+    </section>
+
+    <section class="card">
+      <h2>1. Predizer categoria</h2>
+      <p class="muted">O Mercado Livre devolve até 3 sugestões. A primeira costuma ter maior probabilidade, mas você escolhe antes de validar.</p>
+      <div class="actions"><button class="primary" onclick="discover()">Buscar categorias</button></div>
+      <div id="predictions"></div>
+    </section>
+
+    <section class="card">
+      <h2>2. Atributos da categoria</h2>
+      <div id="categoryChosen" class="status info">Escolha uma categoria acima.</div>
+      <div class="actions"><button class="secondary" onclick="loadAttributes()">Buscar atributos obrigatórios</button></div>
+      <div id="attributes" class="attrs"></div>
+    </section>
+
+    <section class="card">
+      <h2>3. Validar anúncio</h2>
+      <p class="muted">Esta etapa envia o payload ao endpoint de validação, sem criar anúncio.</p>
+      <div class="actions"><button class="primary" onclick="validateItem()">Validar ENG/SKU selecionado</button></div>
+      <div id="validationMsg"></div>
+      <div id="validationResult" class="result hidden"></div>
+    </section>
+
+    <section class="card">
+      <h2>4. Publicar piloto</h2>
+      <div class="status warn"><strong>Atenção:</strong> este botão cria um anúncio real no Mercado Livre. Use apenas depois de a validação passar e de conferir preço, categoria, atributos e imagens.</div>
+      <label>Confirmação</label><input id="confirmPublish" placeholder="Digite PUBLICAR">
+      <div class="actions"><button class="danger" onclick="publishPilot()">PUBLICAR anúncio selecionado</button></div>
+      <div id="publishMsg"></div>
+      <div id="publishResult" class="result hidden"></div>
+    </section>
+
+    <section class="card">
+      <h2>5. Corrigir imagens de anúncio existente</h2>
+      <p class="muted">Use isto apenas para um anúncio que já foi criado sem fotos. O painel fará upload das imagens no CDN do Mercado Livre e substituirá o array de fotos do item.</p>
+      <label>ID do anúncio</label>
+      <input id="existingItemId" placeholder="Ex.: MLB1234567890">
+      <div class="actions">
+        <button class="secondary" onclick="repairPictures()">ENVIAR/ATUALIZAR FOTOS</button>
+      </div>
+      <div id="repairMsg"></div>
+      <div id="repairResult" class="result hidden"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+let catalog=[], current=null, currentCategory=null, schemas=[];
+const $=id=>document.getElementById(id);
+function msg(el,text,kind='info'){el.innerHTML=`<div class="status ${kind}">${text}</div>`}
+async function jfetch(url,opts={}){const r=await fetch(url,{credentials:'same-origin',...opts});let data;try{data=await r.json()}catch{data={text:await r.text()}}if(!r.ok)throw Object.assign(new Error(data.error||data.message||`HTTP ${r.status}`),{data,status:r.status});return data}
+async function init(){
+  const [catalogBase,catalogNovos]=await Promise.all([fetch('/catalog.json').then(r=>r.json()),fetch('/catalog-novos.json').then(r=>r.json())]);
+  catalog=[...catalogBase,...catalogNovos];
+  $('sku').innerHTML=catalog.map(x=>`<option value="${x.sku}">${x.sku} — ${x.product_name}</option>`).join('');
+  try{const s=await jfetch('/api/auth?op=status'); if(s.authenticated){showPanel()}else{showLogin()}}catch{showLogin()}
+}
+function showLogin(){$('loginCard').classList.remove('hidden');$('panel').classList.add('hidden');$('logoutBtn').classList.add('hidden')}
+function showPanel(){$('loginCard').classList.add('hidden');$('panel').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');loadSku();refreshStatus();renderBatch()}
+async function login(){try{await jfetch('/api/auth?op=login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('adminPass').value})});showPanel()}catch(e){msg($('loginMsg'),e.message,'err')}}
+$('logoutBtn').onclick=async()=>{await jfetch('/api/auth?op=logout',{method:'POST'});showLogin()}
+async function refreshStatus(){try{const x=await jfetch('/api/ml?op=me');msg($('mlStatus'),`Conectado como seller ${x.id}${x.nickname?' — '+x.nickname:''}`,'ok');$('connectBtn').textContent='Reconectar Mercado Livre'}catch(e){msg($('mlStatus'),'Mercado Livre ainda não conectado.','warn')}}
+function loadSku(){current=catalog.find(x=>x.sku===$('sku').value)||catalog[0];currentCategory=JSON.parse(localStorage.getItem('cat:'+current.sku)||'null');schemas=[];$('predictions').innerHTML='';$('attributes').innerHTML='';$('validationResult').classList.add('hidden');$('publishResult').classList.add('hidden');$('productInfo').innerHTML=`<hr><div class="grid3"><div><span class="pill">${current.sku}</span><h2 style="margin-top:10px">${esc(current.product_name)}</h2></div><div><div class="muted">Título</div><strong>${esc(current.title)}</strong></div><div><div class="muted">Preço</div><div class="price">R$ ${Number(current.price).toFixed(2).replace('.',',')}</div></div></div>`;renderCategory()}
+function renderCategory(){if(currentCategory)msg($('categoryChosen'),`Categoria escolhida: <strong>${esc(currentCategory.category_name||currentCategory.category_id)}</strong> (${esc(currentCategory.category_id)})`,'ok');else msg($('categoryChosen'),'Escolha uma categoria acima.','info')}
+async function discover(){try{msg($('predictions'),'Consultando preditor...','info');const d=await jfetch('/api/ml?op=discover&sku='+encodeURIComponent(current.sku));if(!Array.isArray(d)||!d.length){msg($('predictions'),'Nenhuma categoria retornada.','warn');return}$('predictions').innerHTML=d.map((p,i)=>`<div class="pred"><strong>${i+1}. ${esc(p.category_name||'Categoria')} <span class="tag">${esc(p.category_id)}</span></strong><div class="muted">${esc(p.domain_name||'')}</div><div class="actions"><button class="secondary" onclick='chooseCategory(${JSON.stringify(JSON.stringify({category_id:p.category_id,category_name:p.category_name,domain_id:p.domain_id,domain_name:p.domain_name,attributes:p.attributes||[]}))})'>Usar esta categoria</button></div></div>`).join('')}catch(e){msg($('predictions'),e.message,'err')}}
+function chooseCategory(raw){currentCategory=JSON.parse(raw);localStorage.setItem('cat:'+current.sku,JSON.stringify(currentCategory));renderCategory();schemas=[];$('attributes').innerHTML='';window.scrollTo({top:$('categoryChosen').getBoundingClientRect().top+scrollY-20,behavior:'smooth'})}
+async function loadAttributes(){if(!currentCategory){msg($('categoryChosen'),'Escolha uma categoria primeiro.','warn');return}try{msg($('categoryChosen'),'Buscando atributos...','info');const d=await jfetch('/api/ml?op=attributes&sku='+encodeURIComponent(current.sku)+'&category_id='+encodeURIComponent(currentCategory.category_id));schemas=d.attributes||[];renderCategory();renderAttrs()}catch(e){msg($('categoryChosen'),e.message,'err')}}
+function renderAttrs(){const saved=JSON.parse(localStorage.getItem('attrs:'+current.sku)||'{}');const relevant=schemas.filter(a=>a.required||a.conditional_required||a.suggested_value);$('attributes').innerHTML=relevant.map(a=>{const val=saved[a.id]??a.suggested_value??'';let field;if(a.values&&a.values.length&&a.values.length<80){field=`<select data-attr="${esc(a.id)}"><option value="">Selecione</option>${a.values.map(v=>`<option value="${esc(v.id||v.name)}" data-name="${esc(v.name||'')}" ${(String(val)===String(v.id)||String(val)===String(v.name))?'selected':''}>${esc(v.name||v.id)}</option>`).join('')}</select>`}else field=`<input data-attr="${esc(a.id)}" value="${esc(val)}" placeholder="${esc(a.value_type||'valor')}">`;return `<div class="attr"><label>${esc(a.name||a.id)} ${a.required?'<span class="tag">obrigatório</span>':''}${a.conditional_required?'<span class="tag">condicional</span>':''}</label>${field}<div class="muted" style="font-size:12px;margin-top:5px">${esc(a.id)}</div></div>`}).join('')||'<div class="muted">Nenhum atributo obrigatório foi identificado. A validação ainda poderá retornar exigências adicionais.</div>';document.querySelectorAll('[data-attr]').forEach(el=>el.addEventListener('change',saveAttrs))}
+function saveAttrs(){const o={};document.querySelectorAll('[data-attr]').forEach(el=>{if(el.value)o[el.dataset.attr]=el.value});localStorage.setItem('attrs:'+current.sku,JSON.stringify(o))}
+function collectAttrs(){saveAttrs();const saved=JSON.parse(localStorage.getItem('attrs:'+current.sku)||'{}');return schemas.filter(a=>saved[a.id]).map(a=>{const raw=saved[a.id];const v=(a.values||[]).find(x=>String(x.id)===String(raw)||String(x.name)===String(raw));return v&&v.id?{id:a.id,value_id:v.id}:{id:a.id,value_name:v?v.name:raw}})}
+async function validateItem(){if(!currentCategory){msg($('validationMsg'),'Escolha a categoria primeiro.','warn');return}try{msg($('validationMsg'),'Validando sem publicar...','info');const d=await jfetch('/api/ml?op=validate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sku:current.sku,category_id:currentCategory.category_id,attributes:collectAttrs()})});msg($('validationMsg'),d.valid?'Validação aprovada. O anúncio ainda NÃO foi publicado.':'O Mercado Livre retornou avisos/erros.',''+(d.valid?'ok':'warn'));$('validationResult').textContent=JSON.stringify(d,null,2);$('validationResult').classList.remove('hidden')}catch(e){msg($('validationMsg'),e.message,'err');$('validationResult').textContent=JSON.stringify(e.data||{},null,2);$('validationResult').classList.remove('hidden')}}
+async function publishPilot(){if($('confirmPublish').value.trim()!=='PUBLICAR'){msg($('publishMsg'),'Digite PUBLICAR para confirmar.','warn');return}if(!currentCategory){msg($('publishMsg'),'Escolha a categoria primeiro.','warn');return}if(!confirm(`Criar anúncio REAL do ${current.sku} no Mercado Livre?`))return;try{msg($('publishMsg'),'Publicando...','info');const d=await jfetch('/api/ml?op=publish',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sku:current.sku,category_id:currentCategory.category_id,attributes:collectAttrs()})});msg($('publishMsg'),`Publicado: ${esc(d.item_id)}${d.permalink?` — <a href="${esc(d.permalink)}" target="_blank">abrir anúncio</a>`:''}`,'ok');$('publishResult').textContent=JSON.stringify(d,null,2);$('publishResult').classList.remove('hidden')}catch(e){msg($('publishMsg'),e.message,'err');$('publishResult').textContent=JSON.stringify(e.data||{},null,2);$('publishResult').classList.remove('hidden')}}
+
+function renderBatch(){
+  $('batchList').innerHTML=catalog.map(product=>{
+    const category=JSON.parse(localStorage.getItem('cat:'+product.sku)||'null');
+    const ready=!!(category&&category.category_id);
+    return `<label style="display:flex;gap:10px;align-items:center;border-bottom:1px solid #e2e8f0;padding:9px 0;font-weight:600"><input type="checkbox" class="batchSku" value="${esc(product.sku)}" ${ready?'':'disabled'}> <span>${esc(product.sku)} — ${esc(product.product_name)}</span><span class="tag">${ready?esc(category.category_id):'categoria pendente'}</span></label>`;
+  }).join('');
+}
+function toggleBatch(value){document.querySelectorAll('.batchSku:not(:disabled)').forEach(input=>{input.checked=value})}
+async function publishBatch(){
+  const selected=[...document.querySelectorAll('.batchSku:checked')].map(input=>input.value);
+  if(!selected.length){msg($('batchMsg'),'Selecione ao menos um produto com categoria definida.','warn');return}
+  if(!confirm(`Validar e publicar ${selected.length} anúncio(s) reais, um por vez?`))return;
+  const results=[]; msg($('batchMsg'),`Processando 0/${selected.length}...`,'info');
+  for(let i=0;i<selected.length;i++){
+    const sku=selected[i], product=catalog.find(x=>x.sku===sku), category=JSON.parse(localStorage.getItem('cat:'+sku)||'null');
+    try{
+      const saved=JSON.parse(localStorage.getItem('attrs:'+sku)||'{}');
+      const attributeSchema=(await jfetch('/api/ml?op=attributes&sku='+encodeURIComponent(sku)+'&category_id='+encodeURIComponent(category.category_id))).attributes||[];
+      const attributes=attributeSchema.filter(a=>saved[a.id]).map(a=>{const raw=saved[a.id], value=(a.values||[]).find(v=>String(v.id)===String(raw)||String(v.name)===String(raw));return value&&value.id?{id:a.id,value_id:value.id}:{id:a.id,value_name:value?value.name:raw}});
+      const validation=await jfetch('/api/ml?op=validate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sku,category_id:category.category_id,attributes})});
+      if(!validation.valid){results.push({sku,ok:false,stage:'validate',error:'Validação recusada',details:validation.response});continue}
+      const published=await jfetch('/api/ml?op=publish',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sku,category_id:category.category_id,attributes})});
+      results.push({sku,ok:true,item_id:published.item_id,status:published.status,sub_status:published.sub_status});
+    }catch(error){results.push({sku,ok:false,stage:'publish',error:error.message,details:error.data||null})}
+    msg($('batchMsg'),`Processando ${i+1}/${selected.length}...`,'info');
+  }
+  const ok=results.filter(x=>x.ok).length;
+  msg($('batchMsg'),`Concluído: ${ok} sucesso(s), ${results.length-ok} erro(s).`,ok===results.length?'ok':'warn');
+  $('batchResult').textContent=JSON.stringify(results,null,2);$('batchResult').classList.remove('hidden');renderBatch();
+}
+
+async function repairPictures(){
+  const itemId=$('existingItemId').value.trim();
+  if(!itemId){msg($('repairMsg'),'Informe o ID do anúncio existente.','warn');return}
+  if(!confirm(`Substituir as fotos do anúncio ${itemId} pelas imagens do ${current.sku}?`))return;
+  try{
+    msg($('repairMsg'),'Enviando imagens ao Mercado Livre e atualizando o anúncio...','info');
+    const d=await jfetch('/api/ml?op=update-pictures',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({sku:current.sku,item_id:itemId})
+    });
+    msg($('repairMsg'),`Fotos atualizadas no anúncio ${esc(itemId)}.`,'ok');
+    $('repairResult').textContent=JSON.stringify(d,null,2);
+    $('repairResult').classList.remove('hidden');
+  }catch(e){
+    msg($('repairMsg'),e.message,'err');
+    $('repairResult').textContent=JSON.stringify(e.data||{},null,2);
+    $('repairResult').classList.remove('hidden');
+  }
+}
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+init();
+</script>
+</body></html>
