@@ -6,11 +6,14 @@ const worker = fs.readFileSync("cloudflare/src/index.mjs", "utf8");
 const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
 const operations = fs.readFileSync("admin-operations.js", "utf8");
 
-test("orders and promotions bundle is executed and cache-busted", () => {
+test("orders and promotions bundle is inlined into admin and cannot stay on placeholders", () => {
   assert.match(operations, /function bind\(\)/);
   assert.match(operations, /\bbind\(\);/);
-  assert.match(worker, /ADMIN_OPERATIONS_VERSION = "1\.6\.1"/);
-  assert.match(worker, /admin-operations\.js\?v=\$\{ADMIN_OPERATIONS_VERSION\}/);
+  assert.match(worker, /ADMIN_OPERATIONS_VERSION = "1\.6\.2"/);
+  assert.match(worker, /data-artisys-operations-build/);
+  assert.match(worker, /operationsAsset\.text\(\)/);
+  assert.match(worker, /Fluxo preparado", "Pedidos/);
+  assert.match(worker, /Área reservada", "Promoções/);
   assert.match(worker, /cache-control", "no-store, max-age=0"/);
   assert.match(wrangler, /"\/admin-operations\.js"/);
 });
