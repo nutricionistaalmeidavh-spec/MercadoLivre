@@ -15,11 +15,15 @@ export function normalizeOrder(data) {
   const payments = Array.isArray(data?.payments) ? data.payments : [];
   const approved = payments.some((payment) => payment?.status === "approved");
   const rejected = payments.some((payment) => ["rejected", "cancelled", "refunded", "charged_back"].includes(payment?.status));
+  const itemIds = [...new Set((Array.isArray(data?.order_items) ? data.order_items : [])
+    .map((entry) => String(entry?.item?.id || "").trim())
+    .filter(Boolean))];
   return {
     orderId: String(data?.id || ""),
     packId: data?.pack_id == null ? null : String(data.pack_id),
     sellerId: String(data?.seller?.id || ""),
     buyerId: String(data?.buyer?.id || ""),
+    itemIds,
     status: String(data?.status || ""),
     paymentApproved: approved,
     paymentRejected: rejected,
@@ -35,6 +39,7 @@ export function evaluateOrderEligibility(order) {
   if (order.fraudRisk) return { eligible: false, reason: "FRAUD_RISK" };
   if (!order.paymentApproved) return { eligible: false, reason: order.paymentRejected ? "PAYMENT_REJECTED" : "PAYMENT_NOT_APPROVED" };
   if (!order.packId) return { eligible: false, reason: "PACK_ID_MISSING" };
+  if (!Array.isArray(order.itemIds) || !order.itemIds.length) return { eligible: false, reason: "ORDER_ITEMS_MISSING" };
   return { eligible: true, reason: "ELIGIBLE" };
 }
 
