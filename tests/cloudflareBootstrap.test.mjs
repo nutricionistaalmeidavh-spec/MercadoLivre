@@ -6,6 +6,9 @@ const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
 const worker = fs.readFileSync("cloudflare/src/index.mjs", "utf8");
 const admin = fs.readFileSync("admin-cloudflare.html", "utf8");
 const callback = fs.readFileSync("mercadolivre/callback/index.html", "utf8");
+const messageRules = fs.readFileSync("cloudflare/src/message-rules.mjs", "utf8");
+const design = fs.readFileSync("DESIGN.md", "utf8");
+const ux = fs.readFileSync("UX-CONTRACT.md", "utf8");
 const pkg = fs.readFileSync("package.json", "utf8");
 
 test("Cloudflare remains dry-run by default and uses D1", () => {
@@ -36,4 +39,43 @@ test("OAuth callback exposes safe provider error details for diagnosis", () => {
 test("message rules endpoint is admin-only in Worker routing", () => {
   assert.match(worker, /url\.pathname === "\/api\/message-rules"/);
   assert.match(worker, /requireAdmin\(request, env\)/);
+});
+
+test("mobile dashboard exposes canonical navigation and listing detail tabs", () => {
+  for (const view of ["inicio", "anuncios", "pedidos", "promocoes", "mais"]) {
+    assert.match(admin, new RegExp(`data-view="${view}"`));
+  }
+  for (const tab of ["resumo", "pos-venda", "comercial", "promocoes"]) {
+    assert.match(admin, new RegExp(`data-tab="${tab}"`));
+  }
+  assert.match(admin, /class="bottom-nav"/);
+  assert.match(admin, /aria-label="Navegação principal"/);
+  assert.match(admin, /id="listingSearch"/);
+  assert.match(admin, /id="clearSearch"/);
+});
+
+test("listing API exposes summary fields needed by the mobile detail view", () => {
+  for (const field of ["body.price", "body.available_quantity", "body.sold_quantity", "body.listing_type_id", "body.category_id"]) {
+    assert.match(messageRules, new RegExp(field.replace(".", "\\.")));
+  }
+});
+
+test("dashboard keeps post-sale disabled by default and edits rule only per item", () => {
+  assert.match(admin, /saveCurrentRule/);
+  assert.match(admin, /item_id:item\.item_id/);
+  assert.doesNotMatch(admin, /ML_AFTER_SALE_MESSAGE/);
+  assert.match(admin, /DRY-RUN/);
+});
+
+test("inline admin script parses as JavaScript", () => {
+  const scripts = [...admin.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+  assert.ok(scripts.length > 0);
+  for (const script of scripts) assert.doesNotThrow(() => new Function(script));
+});
+
+test("design context is maintained for the multi-screen admin", () => {
+  assert.match(design, /ArtiSys Mercado Livre Design System/);
+  assert.match(design, /Mobile-first/);
+  assert.match(ux, /## Navigation and responsive behavior/);
+  assert.match(ux, /WCAG 2\.2 AA/);
 });

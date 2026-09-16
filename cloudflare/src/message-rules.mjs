@@ -22,7 +22,23 @@ async function fetchSellerListings(env, sellerId) {
   for (const group of chunk(ids, 20)) {
     const query = new URLSearchParams({
       ids: group.join(","),
-      attributes: "body.id,body.title,body.status,body.thumbnail,body.permalink,body.seller_id"
+      attributes: [
+        "body.id",
+        "body.title",
+        "body.status",
+        "body.thumbnail",
+        "body.permalink",
+        "body.seller_id",
+        "body.price",
+        "body.currency_id",
+        "body.available_quantity",
+        "body.sold_quantity",
+        "body.listing_type_id",
+        "body.condition",
+        "body.category_id",
+        "body.start_time",
+        "body.stop_time"
+      ].join(",")
     });
     const response = await mlRequest(`/items/bulk?${query}`, token.access_token);
     if (!response.ok || !Array.isArray(response.data)) continue;
@@ -34,7 +50,16 @@ async function fetchSellerListings(env, sellerId) {
         title: String(body.title || ""),
         status: String(body.status || ""),
         thumbnail: body.thumbnail || null,
-        permalink: body.permalink || null
+        permalink: body.permalink || null,
+        price: Number.isFinite(Number(body.price)) ? Number(body.price) : null,
+        currency_id: String(body.currency_id || "BRL"),
+        available_quantity: Number.isFinite(Number(body.available_quantity)) ? Number(body.available_quantity) : null,
+        sold_quantity: Number.isFinite(Number(body.sold_quantity)) ? Number(body.sold_quantity) : null,
+        listing_type_id: String(body.listing_type_id || ""),
+        condition: String(body.condition || ""),
+        category_id: String(body.category_id || ""),
+        start_time: body.start_time || null,
+        stop_time: body.stop_time || null
       });
     }
   }
