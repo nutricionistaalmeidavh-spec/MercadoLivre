@@ -278,7 +278,7 @@ async function serveSystem(request, env) {
 
 async function servePublisher(request, env) {
   const url = new URL(request.url);
-  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin.html`, request));
+  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/publisher.html`, request));
   if (!asset.ok) return asset;
   let html = await asset.text();
   html = html.replace(
