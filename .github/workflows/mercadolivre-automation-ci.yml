@@ -1,0 +1,33 @@
+name: MercadoLivre Automation CI
+
+on:
+  push:
+    branches:
+      - feature/mercadolivre-automation-v1
+  pull_request:
+    paths:
+      - "api/**"
+      - "src/**"
+      - "cloudflare/**"
+      - "tests/**"
+      - "server.js"
+      - "package.json"
+      - ".assetsignore"
+      - "admin-cloudflare.html"
+      - "mercadolivre/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Syntax check
+        run: npm run check
+      - name: Tests
+        run: npm test

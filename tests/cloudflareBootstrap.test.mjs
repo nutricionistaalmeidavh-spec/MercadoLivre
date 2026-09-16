@@ -1,0 +1,29 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+
+const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
+const worker = fs.readFileSync("cloudflare/src/index.mjs", "utf8");
+const admin = fs.readFileSync("admin-cloudflare.html", "utf8");
+const pkg = fs.readFileSync("package.json", "utf8");
+
+test("Cloudflare remains dry-run by default and uses D1", () => {
+  assert.match(wrangler, /"ML_AUTOMATION_MODE"\s*:\s*"dry-run"/);
+  assert.match(wrangler, /"binding"\s*:\s*"DB"/);
+});
+
+test("active Cloudflare runtime has no Vercel migration dependency", () => {
+  assert.doesNotMatch(worker, /migration\/import-token|recordMigration|vercel/i);
+  assert.doesNotMatch(admin, /vercel/i);
+  assert.doesNotMatch(pkg, /migrate-all-to-cloudflare|configure-cloudflare-secrets|cloudflare:migrate/);
+});
+
+test("admin consumes response body only once", () => {
+  assert.match(admin, /const raw=await response\.text\(\)/);
+  assert.doesNotMatch(admin, /await response\.json\(\)/);
+});
+
+test("message rules endpoint is admin-only in Worker routing", () => {
+  assert.match(worker, /url\.pathname === "\/api\/message-rules"/);
+  assert.match(worker, /requireAdmin\(request, env\)/);
+});

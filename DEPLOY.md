@@ -1,11 +1,38 @@
-# Deploy na Vercel
+# Deploy no Cloudflare Workers
 
-1. Importe este diretório como um novo projeto Vercel.
-2. Configure as variáveis de `.env.example` em Settings > Environment Variables.
-3. Use a mesma `ML_REDIRECT_URI` no Mercado Livre Developers.
-4. Faça um deploy de preview e teste login, OAuth, validação e consulta de anúncio.
-5. Só depois promova para produção e publique um único SKU piloto.
+## Pré-requisitos
 
-Não há build command nem dependências externas obrigatórias. As funções em `api/` são Serverless Functions e os módulos reutilizáveis ficam em `src/`.
+- Worker `artisys-mercadolivre` já criado.
+- D1 `artisys-mercadolivre` já criado.
+- Variáveis/secrets do app Mercado Livre já configurados no Worker.
 
-Com Node.js instalado, execute `npm run check` antes do deploy.
+## Validar localmente
+
+```bash
+npm run check
+npm test
+```
+
+## Aplicar migrations D1
+
+```bash
+npx -y wrangler@4 d1 migrations apply artisys-mercadolivre --remote --config cloudflare/wrangler.jsonc
+```
+
+## Publicar Worker
+
+```bash
+npx -y wrangler@4 deploy --config cloudflare/wrangler.jsonc
+```
+
+O projeto usa `keep_vars: true`, portanto os valores atuais de `ML_CLIENT_ID` e `ML_APPLICATION_ID` configurados no Cloudflare não devem ser substituídos pelo repositório.
+
+Depois do deploy, confira:
+
+- `/api/health`
+- `/admin`
+- OAuth Mercado Livre
+- listagem de anúncios
+- regras de resposta por `item_id`
+
+Mantenha `ML_AUTOMATION_MODE=dry-run` durante a validação inicial.

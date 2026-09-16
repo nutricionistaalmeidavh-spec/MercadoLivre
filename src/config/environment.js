@@ -6,8 +6,8 @@ function getEnvironment(env = process.env) {
   const clientSecret = env.ML_CLIENT_SECRET || "";
   const adminPassword = env.ADMIN_PASSWORD || "";
   const redirectUri = env.ML_REDIRECT_URI || REDIRECT_DEFAULT;
-  if (!clientSecret) throw new Error("ML_CLIENT_SECRET não configurado no Vercel.");
-  if (!adminPassword) throw new Error("ADMIN_PASSWORD não configurado no Vercel.");
+  if (!clientSecret) throw new Error("ML_CLIENT_SECRET não configurado.");
+  if (!adminPassword) throw new Error("ADMIN_PASSWORD não configurado.");
   return { clientId, clientSecret, adminPassword, redirectUri };
 }
 
