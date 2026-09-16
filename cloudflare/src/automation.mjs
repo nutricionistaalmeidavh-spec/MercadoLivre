@@ -33,7 +33,7 @@ async function setRun(env, values) {
   });
 }
 
-function buildMessageFromRules(order, rules) {
+export function buildMessageFromRules(order, rules) {
   const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
   const missing = order.itemIds.filter((itemId) => {
     const rule = byId.get(String(itemId));
