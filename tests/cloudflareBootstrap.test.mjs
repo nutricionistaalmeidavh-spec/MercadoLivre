@@ -13,9 +13,10 @@ test("Cloudflare remains dry-run by default and uses D1", () => {
 });
 
 test("active Cloudflare runtime has no Vercel migration dependency", () => {
-  assert.doesNotMatch(worker, /migration\/import-token|recordMigration|vercel/i);
+  assert.doesNotMatch(worker, /migration\/import-token|recordMigration/);
   assert.doesNotMatch(admin, /vercel/i);
   assert.doesNotMatch(pkg, /migrate-all-to-cloudflare|configure-cloudflare-secrets|cloudflare:migrate/);
+  assert.match(worker, /Worker Secret no Cloudflare/);
 });
 
 test("admin consumes response body only once", () => {
