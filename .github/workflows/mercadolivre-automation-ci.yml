@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/mercadolivre-automation-v1
+      - feature/mobile-dashboard-ads-v1
   pull_request:
     paths:
       - "api/**"
@@ -15,6 +16,8 @@ on:
       - ".assetsignore"
       - "admin-cloudflare.html"
       - "mercadolivre/**"
+      - "DESIGN.md"
+      - "UX-CONTRACT.md"
 
 jobs:
   verify:
@@ -31,3 +34,5 @@ jobs:
         run: npm run check
       - name: Tests
         run: npm test
+      - name: Design context lint
+        run: npx -y -p @google/design.md designmd lint DESIGN.md
