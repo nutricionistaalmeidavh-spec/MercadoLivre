@@ -1,12 +1,16 @@
 {
   "name": "artisys-mercado-livre",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Integração Mercado Livre: publicação, pedidos, webhooks, automações pós-venda e runtime Cloudflare",
   "scripts": {
     "start": "node server.js",
+    "start:selfhost": "node server.js",
+    "cloudflare:dev": "npx -y wrangler@4 dev --config cloudflare/wrangler.jsonc",
+    "cloudflare:deploy": "npx -y wrangler@4 deploy --config cloudflare/wrangler.jsonc",
+    "cloudflare:migrate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-all-to-cloudflare.ps1",
     "check:selfhost": "node --check server.js && node --check api/_lib.js && node --check api/ml.js && node --check api/oauth.js && node --check api/webhook.js && node --check api/automation.js && node --check api/health.js && node --check api/migrate-to-cloudflare.js && node --check src/config/environment.js && node --check src/core/http/mercadoLivreClient.js && node --check src/core/database/sqlite.js && node --check src/core/database/migrations.js && node --check src/core/crypto/encryption.js && node --check src/modules/mercado-livre/auth/tokenRepository.js && node --check src/modules/mercado-livre/auth/tokenService.js && node --check src/modules/mercado-livre/orders/orderService.js && node --check src/modules/mercado-livre/orders/orderEligibility.js && node --check src/modules/mercado-livre/notifications/notificationService.js && node --check src/modules/mercado-livre/notifications/ordersHandler.js && node --check src/modules/mercado-livre/messages/communicationReasons.js && node --check src/modules/mercado-livre/messages/policyGuard.js && node --check src/modules/mercado-livre/messages/messageService.js && node --check src/modules/mercado-livre/messages/templates.js && node --check src/modules/mercado-livre/automations/idempotency.js && node --check src/modules/mercado-livre/automations/stateMachine.js && node --check src/modules/mercado-livre/automations/afterSale.js && node --check src/modules/mercado-livre/jobs/worker.js",
-    "check:cloudflare": "node --check cloudflare/src/crypto.mjs && node --check cloudflare/src/repository.mjs && node --check cloudflare/src/token-service.mjs && node --check cloudflare/src/mercadolivre.mjs && node --check cloudflare/src/automation.mjs && node --check cloudflare/src/publisher.mjs && node --check cloudflare/src/index.mjs",
+    "check:cloudflare": "node --check cloudflare/src/crypto.mjs && node --check cloudflare/src/repository.mjs && node --check cloudflare/src/token-service.mjs && node --check cloudflare/src/mercadolivre.mjs && node --check cloudflare/src/automation.mjs && node --check cloudflare/src/publisher.mjs && node --check cloudflare/src/index.mjs && node --check scripts/configure-cloudflare-secrets.mjs",
     "check": "npm run check:selfhost && npm run check:cloudflare",
     "test": "node --test"
   },
