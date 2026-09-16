@@ -1,6 +1,6 @@
 {
   "name": "artisys-mercado-livre",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "description": "Integração Mercado Livre: publicação, pedidos, webhooks, automações pós-venda, promoções e runtime Cloudflare",
   "scripts": {
