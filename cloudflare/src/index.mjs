@@ -5,6 +5,7 @@ import { handlePublisherApi } from "./publisher.mjs";
 import { handleMessageRulesApi } from "./message-rules.mjs";
 import { handleOrdersApi } from "./orders.mjs";
 import { handlePromotionsApi } from "./promotions.mjs";
+import { handleOperationsApi } from "./operations.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -167,6 +168,14 @@ async function handlePromotions(request, env) {
   return json(result);
 }
 
+async function handleOperations(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const result = await handleOperationsApi(env, request);
+  if (result?.error) return json({ error: result.error }, result.status || 400);
+  return json(result);
+}
+
 async function handleWebhook(request, env, ctx) {
   if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
   const payload = await request.json().catch(() => null);
@@ -210,10 +219,25 @@ async function serveAdmin(request, env) {
   if (!asset.ok) return asset;
   let html = await asset.text();
   if (!html.includes('/admin-operations.js')) html = html.replace('</body>', '<script src="/admin-operations.js"></script></body>');
+  if (!html.includes('href="/system"')) {
+    html = html.replace('<div class="more-grid">', '<div class="more-grid"><a class="more-link" href="/system"><div><strong>Sistema e diagnóstico</strong><span>Saúde, configuração, fila e logs operacionais.</span></div><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m9 18 6-6-6-6"/></svg></a>');
+  }
   const headers = new Headers(asset.headers);
   headers.set("content-type", "text/html; charset=utf-8");
   headers.set("cache-control", "no-store");
   return new Response(html, { status: 200, headers });
+}
+
+async function serveSystem(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return Response.redirect(`${new URL(request.url).origin}/admin?view=mais`, 302);
+  const url = new URL(request.url);
+  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-system.html`, request));
+  if (!asset.ok) return asset;
+  const headers = new Headers(asset.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  return new Response(await asset.text(), { status: 200, headers });
 }
 
 async function servePublisher(request, env) {
@@ -240,6 +264,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/admin" || url.pathname === "/admin/" || url.pathname === "/admin.html") return await serveAdmin(request, env);
+      if (url.pathname === "/system" || url.pathname === "/system/") return await serveSystem(request, env);
       if (url.pathname === "/publisher" || url.pathname === "/publisher/") return await servePublisher(request, env);
       if (url.pathname === "/api/auth") return await handleAuth(request, env);
       if (url.pathname === "/api/oauth") return await handleOAuth(request, env);
@@ -247,6 +272,7 @@ export default {
       if (url.pathname === "/api/message-rules") return await handleMessageRules(request, env);
       if (url.pathname === "/api/orders") return await handleOrders(request, env);
       if (url.pathname === "/api/promotions") return await handlePromotions(request, env);
+      if (url.pathname === "/api/operations") return await handleOperations(request, env);
       if (url.pathname === "/api/webhook") return await handleWebhook(request, env, ctx);
       if (url.pathname === "/api/automation") return await handleAutomationStatus(request, env);
       if (url.pathname === "/api/health") return await handleHealth(env);
