@@ -15,7 +15,7 @@ test("orders and promotions bundle is inlined into admin and cannot stay on plac
   assert.match(worker, /Fluxo preparado", "Pedidos/);
   assert.match(worker, /Área reservada", "Promoções/);
   assert.match(worker, /cache-control", "no-store, max-age=0"/);
-  assert.match(wrangler, /"\/admin-operations\.js"/);
+  assert.match(wrangler, /"run_worker_first"\s*:\s*true/);
 });
 
 test("dashboard copy distinguishes manual replies from automatic rules", () => {
