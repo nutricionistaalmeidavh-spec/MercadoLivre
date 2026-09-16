@@ -20,7 +20,7 @@ test("bootstrap lê secrets existentes via Vercel env run sem arquivo local", ()
 
 test("bootstrap exige auditoria SUCCESS antes do cleanup", () => {
   const successCheck = ps.indexOf("$auditRaw -notmatch 'SUCCESS'");
-  const cleanup = ps.indexOf("ML_MIGRATION_SECRET\":null");
+  const cleanup = ps.indexOf('ML_MIGRATION_SECRET":null');
   assert.ok(successCheck >= 0, "deve validar SUCCESS");
   assert.ok(cleanup > successCheck, "cleanup deve ocorrer somente após SUCCESS");
 });
