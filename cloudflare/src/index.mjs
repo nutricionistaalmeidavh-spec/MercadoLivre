@@ -189,11 +189,31 @@ async function serveAdmin(request, env) {
   return env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
 }
 
+async function servePublisher(request, env) {
+  const url = new URL(request.url);
+  const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin.html`, request));
+  if (!asset.ok) return asset;
+  let html = await asset.text();
+  html = html.replace(
+    "Use a senha administrativa que você configurou nas Environment Variables do Vercel.",
+    "Use a senha administrativa configurada como Worker Secret no Cloudflare."
+  );
+  html = html.replace(
+    "async function jfetch(url,opts={}){const r=await fetch(url,{credentials:'same-origin',...opts});let data;try{data=await r.json()}catch{data={text:await r.text()}}if(!r.ok)throw Object.assign(new Error(data.error||data.message||`HTTP ${r.status}`),{data,status:r.status});return data}",
+    "async function jfetch(url,opts={}){const r=await fetch(url,{credentials:'same-origin',...opts});const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{data={text:raw}}if(!r.ok)throw Object.assign(new Error(data.error||data.message||data.text||`HTTP ${r.status}`),{data,status:r.status});return data}"
+  );
+  const headers = new Headers(asset.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  return new Response(html, { status: 200, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     try {
-      if (url.pathname === "/admin" || url.pathname === "/admin/") return await serveAdmin(request, env);
+      if (url.pathname === "/admin" || url.pathname === "/admin/" || url.pathname === "/admin.html") return await serveAdmin(request, env);
+      if (url.pathname === "/publisher" || url.pathname === "/publisher/") return await servePublisher(request, env);
       if (url.pathname === "/api/auth") return await handleAuth(request, env);
       if (url.pathname === "/api/oauth") return await handleOAuth(request, env);
       if (url.pathname === "/api/ml") return await handleMl(request, env);
