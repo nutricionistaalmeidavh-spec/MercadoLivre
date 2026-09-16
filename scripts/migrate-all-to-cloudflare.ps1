@@ -22,6 +22,37 @@ function Invoke-Npx {
   }
 }
 
+function Invoke-Vercel {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [switch]$IgnoreFailure,
+    [switch]$Quiet
+  )
+
+  # Windows PowerShell 5.1 transforma qualquer stderr de processos nativos em
+  # NativeCommandError quando ErrorActionPreference=Stop. O npm/vercel pode
+  # emitir warnings de depreciação no stderr mesmo com exit code 0. Para
+  # comandos Vercel, stderr é permitido e a falha real é decidida apenas pelo
+  # LASTEXITCODE.
+  $previousPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    if ($Quiet) {
+      & npx -y vercel@latest @Arguments *> $null
+    } else {
+      & npx -y vercel@latest @Arguments
+    }
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousPreference
+  }
+
+  if (-not $IgnoreFailure -and $exitCode -ne 0) {
+    throw "Falhou: npx -y vercel@latest $($Arguments -join ' ')"
+  }
+  return $exitCode
+}
+
 function Get-D1Databases {
   $raw = (& npx -y wrangler@4 d1 list --json 2>&1 | Out-String).Trim()
   if ($LASTEXITCODE -ne 0) { throw "Não foi possível listar os bancos D1." }
@@ -90,21 +121,18 @@ if ($workerUrl -notmatch '^https://') { throw "URL do Worker inválida: $workerU
 Write-Host "Worker: $workerUrl" -ForegroundColor Green
 
 Write-Host "`n[5/9] Autenticando e vinculando Vercel antiga..." -ForegroundColor Cyan
-& npx -y vercel@latest whoami *> $null
-if ($LASTEXITCODE -ne 0) {
-  Invoke-Npx vercel@latest login
+$vercelWhoAmI = Invoke-Vercel -Arguments @("whoami") -IgnoreFailure -Quiet
+if ($vercelWhoAmI -ne 0) {
+  Invoke-Vercel -Arguments @("login") | Out-Null
 }
-Invoke-Npx vercel@latest link --yes --project $VercelProject --scope $VercelScope
+Invoke-Vercel -Arguments @("link", "--yes", "--project", $VercelProject, "--scope", $VercelScope) | Out-Null
 
 Write-Host "`n[6/9] Copiando secrets necessários Vercel -> Cloudflare sem gravá-los em arquivo..." -ForegroundColor Cyan
-& npx -y vercel@latest env run -e production -- node scripts/configure-cloudflare-secrets.mjs $workerUrl
-if ($LASTEXITCODE -ne 0) {
-  throw "Não foi possível preparar os secrets. Confirme ML_CLIENT_SECRET e ADMIN_PASSWORD no ambiente Production da Vercel."
-}
+Invoke-Vercel -Arguments @("env", "run", "-e", "production", "--", "node", "scripts/configure-cloudflare-secrets.mjs", $workerUrl) | Out-Null
 
 Write-Host "`n[7/9] Deploy final do Worker e bridge temporário na Vercel..." -ForegroundColor Cyan
 Invoke-Npx wrangler@4 deploy --config cloudflare/wrangler.jsonc
-Invoke-Npx vercel@latest deploy --prod --yes --scope $VercelScope
+Invoke-Vercel -Arguments @("deploy", "--prod", "--yes", "--scope", $VercelScope) | Out-Null
 
 $health = Invoke-RestMethod -Uri "$workerUrl/api/health" -Method Get
 if (-not $health.ok) { throw "Health check do Worker falhou." }
@@ -127,8 +155,8 @@ Write-Host "Token Mercado Livre migrado e validado no Cloudflare." -ForegroundCo
 Write-Host "`n[9/9] Encerrando o segredo temporário de migração..." -ForegroundColor Cyan
 '{"ML_MIGRATION_SECRET":null}' | & npx -y wrangler@4 secret bulk --config cloudflare/wrangler.jsonc
 if ($LASTEXITCODE -ne 0) { throw "Falha ao remover ML_MIGRATION_SECRET do Cloudflare." }
-& npx -y vercel@latest env rm ML_MIGRATION_SECRET production --yes *> $null
-& npx -y vercel@latest env rm ML_MIGRATION_TARGET_URL production --yes *> $null
+Invoke-Vercel -Arguments @("env", "rm", "ML_MIGRATION_SECRET", "production", "--yes") -IgnoreFailure -Quiet | Out-Null
+Invoke-Vercel -Arguments @("env", "rm", "ML_MIGRATION_TARGET_URL", "production", "--yes") -IgnoreFailure -Quiet | Out-Null
 
 $callback = "$workerUrl/mercadolivre/callback"
 $webhook = "$workerUrl/api/webhook"
