@@ -4,10 +4,11 @@
   "main": "./src/index.mjs",
   "compatibility_date": "2026-09-10",
   "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
   "assets": {
     "directory": "../",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/admin", "/admin/", "/admin.html", "/publisher", "/publisher/"]
   },
   "d1_databases": [
     {
@@ -21,10 +22,7 @@
     "crons": ["* * * * *"]
   },
   "vars": {
-    "ML_CLIENT_ID": "7397781723111552",
-    "ML_APPLICATION_ID": "7397781723111552",
     "ML_AUTOMATION_MODE": "dry-run",
-    "ML_AFTER_SALE_MESSAGE": "Olá! Recebemos seu pedido e já estamos acompanhando por aqui. Obrigado pela compra. Se precisar falar sobre este pedido, pode usar este chat.",
     "ML_JOB_MAX_ATTEMPTS": "5"
   }
 }
