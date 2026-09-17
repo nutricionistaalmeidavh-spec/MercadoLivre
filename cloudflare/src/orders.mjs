@@ -55,6 +55,11 @@ function normalizeOrder(order) {
   };
 }
 
+function parseJson(value) {
+  if (value == null || value === "") return null;
+  try { return JSON.parse(String(value)); } catch { return null; }
+}
+
 async function loadAutomationRuns(env, sellerId) {
   const result = await env.DB.prepare(
     `SELECT idempotency_key, order_id, state, reason, message_id, updated_at
@@ -87,7 +92,7 @@ async function loadOrderAudit(env, orderId) {
         LIMIT 1`
     ).bind(String(orderId)).first(),
     env.DB.prepare(
-      `SELECT status, http_status, created_at
+      `SELECT status, http_status, context_json, moderation_status, created_at
          FROM message_attempts
         WHERE order_id = ?
         ORDER BY created_at DESC
@@ -105,6 +110,8 @@ async function loadOrderAudit(env, orderId) {
     message_attempts: (attempts.results || []).map((row) => ({
       status: String(row.status || ""),
       http_status: row.http_status == null ? null : Number(row.http_status),
+      moderation_status: row.moderation_status == null ? null : String(row.moderation_status),
+      context: parseJson(row.context_json),
       created_at: Number(row.created_at || 0)
     }))
   };

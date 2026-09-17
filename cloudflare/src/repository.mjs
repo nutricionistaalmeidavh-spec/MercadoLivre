@@ -127,8 +127,8 @@ export async function upsertAutomationRun(env, run) {
 export async function recordMessageAttempt(env, attempt) {
   await env.DB.prepare(`
     INSERT INTO message_attempts
-      (idempotency_key, order_id, pack_id, status, http_status, response, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (idempotency_key, order_id, pack_id, status, http_status, response, context_json, moderation_status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     attempt.idempotencyKey,
     String(attempt.orderId),
@@ -136,6 +136,8 @@ export async function recordMessageAttempt(env, attempt) {
     attempt.status,
     Number(attempt.httpStatus || 0),
     JSON.stringify(attempt.response ?? null),
+    JSON.stringify(attempt.context ?? null),
+    attempt.moderationStatus == null ? null : String(attempt.moderationStatus),
     Date.now()
   ).run();
 }

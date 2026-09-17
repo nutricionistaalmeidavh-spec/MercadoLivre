@@ -4,6 +4,7 @@ import {
   finishWebhook,
   getAutomationRun,
   getItemMessageRules,
+  recordMessageAttempt,
   upsertAutomationRun
 } from "./repository.mjs";
 import {
@@ -16,7 +17,10 @@ import {
 const AUTOMATION_TYPE = "AFTER_SALE";
 const AUTOMATION_VERSION = "v2-item-rules";
 const POST_SALE_TIME_ZONE = "America/Sao_Paulo";
+const FINAL_MESSAGE_MAX_LENGTH = 2000;
 const TEMPLATE_TOKEN = /\{\{\s*(saudacao|cliente|produto|pedido|link_produto)\s*\}\}/gi;
+const TEMPLATE_ANY_TOKEN = /\{\{\s*([^{}]+?)\s*\}\}/g;
+const PRODUCT_LINK_TOKEN = /\{\{\s*link_produto\s*\}\}/i;
 
 export function parseOrderId(resource) {
   const match = String(resource || "").match(/\/orders\/(\d+)/);
@@ -74,6 +78,23 @@ export function resolvePostSaleTemplate(template, { order, rule, now = new Date(
   return String(template || "").replace(TEMPLATE_TOKEN, (_match, key) => values[String(key).toLowerCase()] ?? "").trim();
 }
 
+function unresolvedVariables(text) {
+  return [...new Set(
+    [...String(text || "").matchAll(TEMPLATE_ANY_TOKEN)]
+      .map((match) => String(match[1] || "").trim().toLowerCase())
+      .filter(Boolean)
+  )];
+}
+
+function validateFinalMessage(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return { ok: false, reason: "EMPTY_RESOLVED_MESSAGE" };
+  const unresolved = unresolvedVariables(normalized);
+  if (unresolved.length) return { ok: false, reason: `UNRESOLVED_TEMPLATE_VARIABLES:${unresolved.join(",")}` };
+  if (normalized.length > FINAL_MESSAGE_MAX_LENGTH) return { ok: false, reason: "FINAL_MESSAGE_TOO_LONG" };
+  return { ok: true, text: normalized };
+}
+
 export function buildMessageFromRules(order, rules, { now = new Date() } = {}) {
   const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
   const missing = order.itemIds.filter((itemId) => {
@@ -83,22 +104,58 @@ export function buildMessageFromRules(order, rules, { now = new Date() } = {}) {
   if (missing.length) return { ok: false, reason: `NO_ENABLED_MESSAGE_RULE:${missing.join(",")}` };
 
   const selected = order.itemIds.map((itemId) => byId.get(String(itemId)));
+  for (const rule of selected) {
+    if (PRODUCT_LINK_TOKEN.test(String(rule.message || "")) && !String(rule.product_link || "").trim()) {
+      return { ok: false, reason: `MISSING_PRODUCT_LINK:${rule.item_id}` };
+    }
+  }
+
   const uniqueMessages = [];
   const seen = new Set();
   for (const rule of selected) {
-    const text = resolvePostSaleTemplate(rule.message, { order, rule, now });
-    if (seen.has(text)) continue;
-    seen.add(text);
-    uniqueMessages.push({ rule, text });
+    const resolved = resolvePostSaleTemplate(rule.message, { order, rule, now });
+    const checked = validateFinalMessage(resolved);
+    if (!checked.ok) return checked;
+    if (seen.has(checked.text)) continue;
+    seen.add(checked.text);
+    uniqueMessages.push({ rule, text: checked.text });
   }
 
-  if (uniqueMessages.length === 1) return { ok: true, text: uniqueMessages[0].text };
+  const combined = uniqueMessages.length === 1
+    ? uniqueMessages[0].text
+    : uniqueMessages.map(({ rule, text }) => {
+      const title = cleanDisplayText(rule.item_title || rule.item_id || "Produto", 300);
+      return `${title}:\n${text}`;
+    }).join("\n\n");
 
-  const text = uniqueMessages.map(({ rule, text: resolved }) => {
-    const title = cleanDisplayText(rule.item_title || rule.item_id || "Produto", 300);
-    return `${title}:\n${resolved}`;
-  }).join("\n\n");
-  return { ok: true, text };
+  return validateFinalMessage(combined);
+}
+
+function buildDeliveryContext(order, rules, finalText) {
+  const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
+  const items = (order.itemIds || []).map((itemId) => {
+    const rule = byId.get(String(itemId)) || {};
+    return {
+      item_id: String(itemId),
+      title: cleanDisplayText(rule.item_title || itemId, 300),
+      product_link: String(rule.product_link || "").trim()
+    };
+  });
+  return {
+    order_id: String(order.orderId || ""),
+    pack_id: order.packId == null ? null : String(order.packId),
+    buyer: resolveBuyerDisplayName(order),
+    item_ids: items.map((item) => item.item_id),
+    items,
+    final_text: String(finalText || "")
+  };
+}
+
+export function isRetryableProcessingError(error) {
+  if (error?.retryable === false) return false;
+  if (error?.retryable === true) return true;
+  const status = Number(error?.statusCode || 0);
+  return status === 429 || status >= 500;
 }
 
 export async function processOrderEvent(env, payload) {
@@ -129,6 +186,7 @@ export async function processOrderEvent(env, payload) {
     return { skipped: true, reason: configured.reason };
   }
 
+  const deliveryContext = buildDeliveryContext(order, rules, configured.text);
   const policy = await fetchMessagePolicy(env, order.packId, sellerId, configured.text);
   if (!policy.allowed) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: policy.reason });
@@ -137,6 +195,16 @@ export async function processOrderEvent(env, payload) {
 
   const mode = String(env.ML_AUTOMATION_MODE || "dry-run").toLowerCase();
   if (mode !== "production") {
+    await recordMessageAttempt(env, {
+      idempotencyKey: key,
+      orderId,
+      packId: order.packId,
+      status: "DRY_RUN",
+      httpStatus: 0,
+      response: { reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" },
+      moderationStatus: "not_sent",
+      context: deliveryContext
+    });
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "DRY_RUN", reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" });
     return { dryRun: true, orderId, packId: order.packId, itemIds: order.itemIds, charLimit: policy.charLimit };
   }
@@ -146,7 +214,8 @@ export async function processOrderEvent(env, payload) {
     sellerId,
     orderId,
     text: policy.text,
-    idempotencyKey: key
+    idempotencyKey: key,
+    deliveryContext
   });
   const messageId = response?.id || response?.message_id || null;
   await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SENT", reason: "MESSAGE_SENT", messageId });
@@ -164,7 +233,7 @@ export async function processOneQueuedEvent(env) {
     await finishWebhook(env, event.event_key);
     return { processed: true, eventKey: event.event_key, result };
   } catch (error) {
-    const retryable = error?.retryable === true || error?.statusCode === 429 || Number(error?.statusCode) >= 500;
+    const retryable = isRetryableProcessingError(error);
     const status = await failWebhook(env, event, error, retryable);
     return { processed: true, eventKey: event.event_key, error: error.message, retry: status.retry };
   }
