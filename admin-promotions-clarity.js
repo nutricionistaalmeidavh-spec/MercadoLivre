@@ -72,10 +72,13 @@
 
     for (const entry of entries) {
       const info = promotionEntryInfo(entry);
-      if (info.typeEl) info.typeEl.textContent = promotionTypeLabel(info.rawType);
+      if (info.typeEl) {
+        const translated = promotionTypeLabel(info.rawType);
+        if (info.typeEl.textContent !== translated) info.typeEl.textContent = translated;
+      }
       if (info.priceEl) {
         const price = promotionPriceMarkup(info.priceEl.textContent, info.status);
-        info.priceEl.textContent = price;
+        if (info.priceEl.textContent !== price) info.priceEl.textContent = price;
         if (price === 'Sem preço definido') {
           info.priceEl.className = 'promo-no-price';
           entry.classList.add('promo-entry-available');
@@ -108,11 +111,12 @@
       const scheduledCount = (groups.get('scheduled') || []).length;
       badge.classList.toggle('pill-success', activeCount > 0);
       badge.classList.toggle('pill-neutral', activeCount === 0);
-      badge.textContent = activeCount
+      const badgeText = activeCount
         ? `${activeCount} ativa${activeCount === 1 ? '' : 's'}`
         : scheduledCount
           ? `${scheduledCount} programada${scheduledCount === 1 ? '' : 's'}`
           : 'Sem promoção ativa';
+      if (badge.textContent !== badgeText) badge.textContent = badgeText;
     }
 
     card.dataset.promoClarified = '1';
@@ -123,7 +127,8 @@
     const view = document.getElementById('view-promocoes');
     if (!view) return;
     const intro = view.querySelector('.section-card .page-copy');
-    if (intro) intro.textContent = 'Veja separadamente o que está ativo, programado ou apenas disponível. Para criar um desconto individual, use o botão dentro do anúncio correspondente.';
+    const introText = 'Veja separadamente o que está ativo, programado ou apenas disponível. Para criar um desconto individual, use o botão dentro do anúncio correspondente.';
+    if (intro && intro.textContent !== introText) intro.textContent = introText;
   }
 
   function clarifyDetailPanel() {
@@ -135,10 +140,14 @@
       if (!label) return;
       const original = String(label.textContent || '');
       for (const [type, translated] of Object.entries(TYPE_LABELS)) {
-        if (original.includes(type)) label.textContent = original.replace(type, translated);
+        if (original.includes(type)) {
+          const next = original.replace(type, translated);
+          if (label.textContent !== next) label.textContent = next;
+          break;
+        }
       }
       if (value && /Disponível/i.test(label.textContent || '') && /(?:R\$\s*)?0(?:[.,]00)?/.test(String(value.textContent || '').trim())) {
-        value.textContent = 'Sem preço definido';
+        if (value.textContent !== 'Sem preço definido') value.textContent = 'Sem preço definido';
       }
     });
   }
@@ -158,6 +167,9 @@
       applyPromotionClarity();
     });
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  const promoList = document.getElementById('promosList');
+  const detailPanel = document.getElementById('tab-promocoes');
+  if (promoList) observer.observe(promoList, { childList: true, subtree: true });
+  if (detailPanel) observer.observe(detailPanel, { childList: true, subtree: true });
   applyPromotionClarity();
 })();
