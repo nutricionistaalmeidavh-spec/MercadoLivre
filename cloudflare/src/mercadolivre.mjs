@@ -129,7 +129,7 @@ export async function fetchMessagePolicy(env, packId, sellerId, text) {
   return evaluateMessagePolicy({ guide, caps, text });
 }
 
-export async function sendOtherMessage(env, { packId, sellerId, orderId, text, idempotencyKey }) {
+export async function sendOtherMessage(env, { packId, sellerId, orderId, text, idempotencyKey, deliveryContext = null }) {
   const token = await getValidToken(env, sellerId);
   const response = await mlRequest(
     `/messages/action_guide/packs/${encodeURIComponent(packId)}/option?tag=post_sale`,
@@ -143,19 +143,23 @@ export async function sendOtherMessage(env, { packId, sellerId, orderId, text, i
 
   const moderationStatus = String(response.data?.status || response.data?.message_status || "").toLowerCase();
   const moderated = ["moderated", "rejected", "blocked"].includes(moderationStatus);
+  const moderationResult = moderationStatus || (response.ok ? "accepted" : "unknown");
   await recordMessageAttempt(env, {
     idempotencyKey,
     orderId,
     packId,
     status: response.ok && !moderated ? "SENT" : moderated ? "MODERATED" : "FAILED",
     httpStatus: response.status,
-    response: response.data
+    response: response.data,
+    context: deliveryContext,
+    moderationStatus: moderationResult
   });
 
   if (!response.ok || moderated) {
     const error = new Error(moderated ? "Mensagem moderada ou bloqueada pelo Mercado Livre." : "Mercado Livre recusou a mensagem pós-venda.");
     error.statusCode = response.status;
-    error.retryable = !moderated && (response.status === 429 || response.status >= 500);
+    error.retryable = moderated ? false : response.status === 429 || response.status >= 500;
+    error.moderationStatus = moderationResult;
     throw error;
   }
   return response.data;
