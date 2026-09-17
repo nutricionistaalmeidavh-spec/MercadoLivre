@@ -10,7 +10,7 @@ const assetsIgnore = fs.readFileSync(".assetsignore", "utf8");
 test("orders and promotions bundle is inlined into admin and cannot stay on placeholders", () => {
   assert.match(operations, /function bind\(\)/);
   assert.match(operations, /\bbind\(\);/);
-  assert.match(worker, /ADMIN_OPERATIONS_VERSION = "1\.6\.2"/);
+  assert.match(worker, /ADMIN_OPERATIONS_VERSION = "1\.6\.4"/);
   assert.match(worker, /data-artisys-operations-build/);
   assert.match(worker, /operationsAsset\.text\(\)/);
   assert.match(worker, /Fluxo preparado", "Pedidos/);
