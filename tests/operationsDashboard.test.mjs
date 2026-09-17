@@ -6,6 +6,7 @@ const worker = fs.readFileSync('cloudflare/src/index.mjs','utf8');
 const orders = fs.readFileSync('cloudflare/src/orders.mjs','utf8');
 const promotions = fs.readFileSync('cloudflare/src/promotions.mjs','utf8');
 const ui = fs.readFileSync('admin-operations.js','utf8');
+const postSaleUi = fs.readFileSync('admin-post-sale-templates.js','utf8');
 const promoUi = fs.readFileSync('admin-promotions-clarity.js','utf8');
 const assets = fs.readFileSync('.assetsignore','utf8');
 
@@ -58,6 +59,14 @@ test('promotions observer is scoped and text updates are idempotent', () => {
   assert.doesNotMatch(promoUi, /observer\.observe\(document\.body/);
   assert.match(promoUi, /getElementById\('promosList'\)/);
   assert.match(promoUi, /intro\.textContent !== introText/);
+});
+
+test('admin inlines promotions clarity bundle and does not load it externally', () => {
+  assert.match(worker, /ADMIN_OPERATIONS_VERSION = "1\.6\.4"/);
+  assert.match(worker, /admin-promotions-clarity\.js/);
+  assert.match(worker, /promotionsClarityScript/);
+  assert.match(worker, /data-artisys-promotions-clarity-build/);
+  assert.doesNotMatch(postSaleUi, /script\.src\s*=\s*['"]\/admin-promotions-clarity\.js/);
 });
 
 test('operations assets are included in Cloudflare static assets', () => {
