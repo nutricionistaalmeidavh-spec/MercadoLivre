@@ -8,7 +8,7 @@ import { handlePromotionsApi } from "./promotions.mjs";
 import { handleOperationsApi } from "./operations.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
-const ADMIN_OPERATIONS_VERSION = "1.6.2";
+const ADMIN_OPERATIONS_VERSION = "1.6.4";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -230,11 +230,12 @@ async function serveAdmin(request, env) {
   const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
   if (!asset.ok) return asset;
 
-  const [operationsAsset, postSaleAsset] = await Promise.all([
+  const [operationsAsset, postSaleAsset, promotionsClarityAsset] = await Promise.all([
     env.ASSETS.fetch(new Request(`${url.origin}/admin-operations.js`, request)),
-    env.ASSETS.fetch(new Request(`${url.origin}/admin-post-sale-templates.js`, request))
+    env.ASSETS.fetch(new Request(`${url.origin}/admin-post-sale-templates.js`, request)),
+    env.ASSETS.fetch(new Request(`${url.origin}/admin-promotions-clarity.js`, request))
   ]);
-  if (!operationsAsset.ok || !postSaleAsset.ok) {
+  if (!operationsAsset.ok || !postSaleAsset.ok || !promotionsClarityAsset.ok) {
     return new Response("Bundle operacional do painel não encontrado.", {
       status: 500,
       headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" }
@@ -244,6 +245,7 @@ async function serveAdmin(request, env) {
   let html = await asset.text();
   const operationsScript = (await operationsAsset.text()).replace(/<\/script/gi, "<\\/script");
   const postSaleScript = (await postSaleAsset.text()).replace(/<\/script/gi, "<\\/script");
+  const promotionsClarityScript = (await promotionsClarityAsset.text()).replace(/<\/script/gi, "<\\/script");
 
   html = html.replaceAll("Sem resposta", "Sem automação");
   html = html.replaceAll("anúncios para revisar", "anúncios sem regra automática");
@@ -256,7 +258,7 @@ async function serveAdmin(request, env) {
   html = html.replace(/<script[^>]+src=["']\/admin-operations\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi, "");
   html = html.replace(
     '</body>',
-    `<script data-artisys-operations-build="${ADMIN_OPERATIONS_VERSION}">${operationsScript}</script><script data-artisys-post-sale-build="${ADMIN_OPERATIONS_VERSION}">${postSaleScript}</script></body>`
+    `<script data-artisys-operations-build="${ADMIN_OPERATIONS_VERSION}">${operationsScript}</script><script data-artisys-post-sale-build="${ADMIN_OPERATIONS_VERSION}">${postSaleScript}</script><script data-artisys-promotions-clarity-build="${ADMIN_OPERATIONS_VERSION}">${promotionsClarityScript}</script></body>`
   );
 
   if (!html.includes('href="/system"')) {
