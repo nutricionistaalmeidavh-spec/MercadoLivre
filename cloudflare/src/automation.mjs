@@ -15,6 +15,8 @@ import {
 
 const AUTOMATION_TYPE = "AFTER_SALE";
 const AUTOMATION_VERSION = "v2-item-rules";
+const POST_SALE_TIME_ZONE = "America/Sao_Paulo";
+const TEMPLATE_TOKEN = /\{\{\s*(saudacao|cliente|produto|pedido|link_produto)\s*\}\}/gi;
 
 export function parseOrderId(resource) {
   const match = String(resource || "").match(/\/orders\/(\d+)/);
@@ -33,7 +35,46 @@ async function setRun(env, values) {
   });
 }
 
-export function buildMessageFromRules(order, rules) {
+function cleanDisplayText(value, maxLength = 120) {
+  return String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+export function resolveBuyerDisplayName(order) {
+  const firstName = cleanDisplayText(order?.buyerFirstName);
+  if (firstName) return firstName.split(" ")[0];
+  const nickname = cleanDisplayText(order?.buyerNickname);
+  return nickname || "cliente";
+}
+
+export function greetingForDate(now = new Date()) {
+  const date = now instanceof Date ? now : new Date(now);
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: POST_SALE_TIME_ZONE,
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  if (hour >= 5 && hour < 12) return "bom dia";
+  if (hour >= 12 && hour < 18) return "boa tarde";
+  return "boa noite";
+}
+
+export function resolvePostSaleTemplate(template, { order, rule, now = new Date() } = {}) {
+  const values = {
+    saudacao: greetingForDate(now),
+    cliente: resolveBuyerDisplayName(order),
+    produto: cleanDisplayText(rule?.item_title || rule?.item_id || "produto", 300),
+    pedido: cleanDisplayText(order?.orderId || "", 80),
+    link_produto: String(rule?.product_link || "").trim()
+  };
+  return String(template || "").replace(TEMPLATE_TOKEN, (_match, key) => values[String(key).toLowerCase()] ?? "").trim();
+}
+
+export function buildMessageFromRules(order, rules, { now = new Date() } = {}) {
   const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
   const missing = order.itemIds.filter((itemId) => {
     const rule = byId.get(String(itemId));
@@ -45,17 +86,17 @@ export function buildMessageFromRules(order, rules) {
   const uniqueMessages = [];
   const seen = new Set();
   for (const rule of selected) {
-    const message = String(rule.message || "").trim();
-    if (seen.has(message)) continue;
-    seen.add(message);
-    uniqueMessages.push(rule);
+    const text = resolvePostSaleTemplate(rule.message, { order, rule, now });
+    if (seen.has(text)) continue;
+    seen.add(text);
+    uniqueMessages.push({ rule, text });
   }
 
-  if (uniqueMessages.length === 1) return { ok: true, text: String(uniqueMessages[0].message).trim() };
+  if (uniqueMessages.length === 1) return { ok: true, text: uniqueMessages[0].text };
 
-  const text = uniqueMessages.map((rule) => {
-    const title = String(rule.item_title || rule.item_id || "Produto").trim();
-    return `${title}:\n${String(rule.message || "").trim()}`;
+  const text = uniqueMessages.map(({ rule, text: resolved }) => {
+    const title = cleanDisplayText(rule.item_title || rule.item_id || "Produto", 300);
+    return `${title}:\n${resolved}`;
   }).join("\n\n");
   return { ok: true, text };
 }
