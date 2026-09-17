@@ -2,6 +2,48 @@ import { getValidToken } from "./token-service.mjs";
 import { listItemMessageRules, upsertItemMessageRule } from "./repository.mjs";
 import { mlRequest } from "./mercadolivre.mjs";
 
+const SHORTENER_HOSTS = new Set([
+  "bit.ly",
+  "tinyurl.com",
+  "t.co",
+  "cutt.ly",
+  "rebrand.ly",
+  "is.gd",
+  "goo.gl",
+  "shorturl.at"
+]);
+
+export function validateProductLink(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { ok: true, url: "" };
+  if (raw.length > 2048) return { ok: false, reason: "PRODUCT_LINK_TOO_LONG" };
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return { ok: false, reason: "PRODUCT_LINK_INVALID" };
+  }
+
+  if (parsed.protocol !== "https:") return { ok: false, reason: "PRODUCT_LINK_HTTPS_REQUIRED" };
+  if (parsed.username || parsed.password) return { ok: false, reason: "PRODUCT_LINK_INVALID" };
+
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+  if (SHORTENER_HOSTS.has(host)) return { ok: false, reason: "PRODUCT_LINK_SHORTENER_NOT_ALLOWED" };
+
+  return { ok: true, url: parsed.toString() };
+}
+
+function productLinkError(reason) {
+  const messages = {
+    PRODUCT_LINK_TOO_LONG: "Link do produto muito longo.",
+    PRODUCT_LINK_INVALID: "Informe um link de entrega válido.",
+    PRODUCT_LINK_HTTPS_REQUIRED: "O link de entrega precisa usar https://.",
+    PRODUCT_LINK_SHORTENER_NOT_ALLOWED: "Não use link encurtado na entrega do produto."
+  };
+  return messages[reason] || "Link de entrega inválido.";
+}
+
 function chunk(values, size) {
   const out = [];
   for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
@@ -95,12 +137,15 @@ export async function handleMessageRulesApi(env, request, sellerId) {
     const body = await request.json().catch(() => ({}));
     const itemId = String(body.item_id || "").trim();
     const message = String(body.message || "").trim();
-    const productLink = String(body.product_link || "").trim();
     const enabled = Boolean(body.enabled);
     if (!itemId) return { error: "item_id obrigatório.", status: 400 };
     if (enabled && !message) return { error: "Defina a mensagem antes de ativar a automação deste anúncio.", status: 400 };
     if (message.length > 2000) return { error: "Mensagem muito longa para configuração.", status: 400 };
-    if (productLink.length > 2048) return { error: "Link do produto muito longo.", status: 400 };
+
+    const linkValidation = validateProductLink(body.product_link);
+    if (!linkValidation.ok) return { error: productLinkError(linkValidation.reason), status: 400 };
+    const productLink = linkValidation.url;
+
     if (enabled && /\{\{\s*link_produto\s*\}\}/i.test(message) && !productLink) {
       return { error: "Defina o link de entrega antes de usar {{link_produto}}.", status: 400 };
     }
