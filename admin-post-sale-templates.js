@@ -146,11 +146,4 @@
       setBusy(button, false);
     }
   };
-
-  if (!document.querySelector('script[data-artisys-promotions-clarity]')) {
-    const script = document.createElement('script');
-    script.src = '/admin-promotions-clarity.js?v=1.6.3';
-    script.dataset.artisysPromotionsClarity = '1';
-    document.head.appendChild(script);
-  }
 })();
