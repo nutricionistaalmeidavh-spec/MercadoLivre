@@ -11,6 +11,14 @@ export async function mlRequest(path, token, options = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
+function cleanBuyerText(value) {
+  return String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
 export function normalizeOrder(data) {
   const payments = Array.isArray(data?.payments) ? data.payments : [];
   const approved = payments.some((payment) => payment?.status === "approved");
@@ -23,6 +31,8 @@ export function normalizeOrder(data) {
     packId: data?.pack_id == null ? null : String(data.pack_id),
     sellerId: String(data?.seller?.id || ""),
     buyerId: String(data?.buyer?.id || ""),
+    buyerFirstName: cleanBuyerText(data?.buyer?.first_name),
+    buyerNickname: cleanBuyerText(data?.buyer?.nickname),
     itemIds,
     status: String(data?.status || ""),
     paymentApproved: approved,
