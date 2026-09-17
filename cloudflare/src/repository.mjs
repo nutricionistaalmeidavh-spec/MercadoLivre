@@ -142,7 +142,7 @@ export async function recordMessageAttempt(env, attempt) {
 
 export async function listItemMessageRules(env, sellerId) {
   const result = await env.DB.prepare(`
-    SELECT seller_id, item_id, item_title, message, enabled, created_at, updated_at
+    SELECT seller_id, item_id, item_title, message, product_link, enabled, created_at, updated_at
     FROM item_message_rules
     WHERE seller_id=?
     ORDER BY updated_at DESC, item_id ASC
@@ -155,7 +155,7 @@ export async function getItemMessageRules(env, sellerId, itemIds) {
   if (!ids.length) return [];
   const placeholders = ids.map(() => "?").join(",");
   const result = await env.DB.prepare(`
-    SELECT seller_id, item_id, item_title, message, enabled, created_at, updated_at
+    SELECT seller_id, item_id, item_title, message, product_link, enabled, created_at, updated_at
     FROM item_message_rules
     WHERE seller_id=? AND item_id IN (${placeholders})
   `).bind(String(sellerId), ...ids).all();
@@ -168,19 +168,21 @@ export async function upsertItemMessageRule(env, rule) {
   const itemId = String(rule.itemId);
   const title = String(rule.itemTitle || "").slice(0, 300) || null;
   const message = String(rule.message || "").trim();
+  const productLink = String(rule.productLink || "").trim().slice(0, 2048);
   const enabled = rule.enabled ? 1 : 0;
   await env.DB.prepare(`
     INSERT INTO item_message_rules
-      (seller_id, item_id, item_title, message, enabled, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (seller_id, item_id, item_title, message, product_link, enabled, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(seller_id, item_id) DO UPDATE SET
       item_title=excluded.item_title,
       message=excluded.message,
+      product_link=excluded.product_link,
       enabled=excluded.enabled,
       updated_at=excluded.updated_at
-  `).bind(sellerId, itemId, title, message, enabled, now, now).run();
+  `).bind(sellerId, itemId, title, message, productLink, enabled, now, now).run();
   return env.DB.prepare(`
-    SELECT seller_id, item_id, item_title, message, enabled, created_at, updated_at
+    SELECT seller_id, item_id, item_title, message, product_link, enabled, created_at, updated_at
     FROM item_message_rules WHERE seller_id=? AND item_id=?
   `).bind(sellerId, itemId).first();
 }
