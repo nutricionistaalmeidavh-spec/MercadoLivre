@@ -82,9 +82,10 @@ export async function handleMessageRulesApi(env, request, sellerId) {
           ...item,
           rule: rule ? {
             message: String(rule.message || ""),
+            product_link: String(rule.product_link || ""),
             enabled: Boolean(rule.enabled),
             updated_at: Number(rule.updated_at || 0)
-          } : { message: "", enabled: false, updated_at: 0 }
+          } : { message: "", product_link: "", enabled: false, updated_at: 0 }
         };
       })
     };
@@ -94,10 +95,15 @@ export async function handleMessageRulesApi(env, request, sellerId) {
     const body = await request.json().catch(() => ({}));
     const itemId = String(body.item_id || "").trim();
     const message = String(body.message || "").trim();
+    const productLink = String(body.product_link || "").trim();
     const enabled = Boolean(body.enabled);
     if (!itemId) return { error: "item_id obrigatório.", status: 400 };
     if (enabled && !message) return { error: "Defina a mensagem antes de ativar a automação deste anúncio.", status: 400 };
     if (message.length > 2000) return { error: "Mensagem muito longa para configuração.", status: 400 };
+    if (productLink.length > 2048) return { error: "Link do produto muito longo.", status: 400 };
+    if (enabled && /\{\{\s*link_produto\s*\}\}/i.test(message) && !productLink) {
+      return { error: "Defina o link de entrega antes de usar {{link_produto}}.", status: 400 };
+    }
 
     const token = await getValidToken(env, sellerId);
     const itemResponse = await mlRequest(`/items/${encodeURIComponent(itemId)}`, token.access_token);
@@ -111,6 +117,7 @@ export async function handleMessageRulesApi(env, request, sellerId) {
       itemId,
       itemTitle: itemResponse.data?.title || body.title || "",
       message,
+      productLink,
       enabled
     });
     return {
@@ -119,6 +126,7 @@ export async function handleMessageRulesApi(env, request, sellerId) {
         item_id: String(saved.item_id),
         title: String(saved.item_title || ""),
         message: String(saved.message || ""),
+        product_link: String(saved.product_link || ""),
         enabled: Number(saved.enabled || 0) === 1,
         updated_at: Number(saved.updated_at || 0)
       }

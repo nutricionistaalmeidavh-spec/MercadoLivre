@@ -230,8 +230,11 @@ async function serveAdmin(request, env) {
   const asset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-cloudflare.html`, request));
   if (!asset.ok) return asset;
 
-  const operationsAsset = await env.ASSETS.fetch(new Request(`${url.origin}/admin-operations.js`, request));
-  if (!operationsAsset.ok) {
+  const [operationsAsset, postSaleAsset] = await Promise.all([
+    env.ASSETS.fetch(new Request(`${url.origin}/admin-operations.js`, request)),
+    env.ASSETS.fetch(new Request(`${url.origin}/admin-post-sale-templates.js`, request))
+  ]);
+  if (!operationsAsset.ok || !postSaleAsset.ok) {
     return new Response("Bundle operacional do painel não encontrado.", {
       status: 500,
       headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" }
@@ -240,6 +243,7 @@ async function serveAdmin(request, env) {
 
   let html = await asset.text();
   const operationsScript = (await operationsAsset.text()).replace(/<\/script/gi, "<\\/script");
+  const postSaleScript = (await postSaleAsset.text()).replace(/<\/script/gi, "<\\/script");
 
   html = html.replaceAll("Sem resposta", "Sem automação");
   html = html.replaceAll("anúncios para revisar", "anúncios sem regra automática");
@@ -250,7 +254,10 @@ async function serveAdmin(request, env) {
   html = html.replaceAll("O menu e o contexto por anúncio já estão prontos. O controle real de promoções será conectado na Entrega 4.", "Carregando promoções e descontos dos anúncios…");
   html = html.replaceAll("O contexto já está ligado ao anúncio correto. Criar, editar e encerrar promoções entra na Entrega 4.", "Carregando promoções deste anúncio…");
   html = html.replace(/<script[^>]+src=["']\/admin-operations\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi, "");
-  html = html.replace('</body>', `<script data-artisys-operations-build="${ADMIN_OPERATIONS_VERSION}">${operationsScript}</script></body>`);
+  html = html.replace(
+    '</body>',
+    `<script data-artisys-operations-build="${ADMIN_OPERATIONS_VERSION}">${operationsScript}</script><script data-artisys-post-sale-build="${ADMIN_OPERATIONS_VERSION}">${postSaleScript}</script></body>`
+  );
 
   if (!html.includes('href="/system"')) {
     html = html.replace('<div class="more-grid">', '<div class="more-grid"><a class="more-link" href="/system"><div><strong>Sistema e diagnóstico</strong><span>Saúde, configuração, fila e logs operacionais.</span></div><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m9 18 6-6-6-6"/></svg></a>');
