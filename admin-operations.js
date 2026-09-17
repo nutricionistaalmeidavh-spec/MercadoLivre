@@ -1,11 +1,25 @@
 (() => {
   const STYLE = `
   .ops-toolbar{display:grid;gap:10px;margin-bottom:12px}.ops-toolbar-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.ops-card-list{display:grid;gap:10px}.order-card,.promo-card{width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px;color:var(--ink)}
-  .order-card{display:grid;gap:10px}.order-card:hover,.promo-card:hover{border-color:#b7c7be;box-shadow:0 8px 24px rgba(16,35,26,.05)}.order-top,.promo-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.order-id,.promo-item-id{font:700 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-soft)}.order-value{font:900 16px/1.1 "Arial Black",Arial,sans-serif}.order-product{display:flex;gap:9px;align-items:center}.order-product-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#edf2ef}.order-product-copy{min-width:0}.order-product-title{font-size:13px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-product-meta{font-size:11px;color:var(--ink-soft);margin-top:3px}.order-foot,.promo-foot{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.ops-back{display:flex;align-items:center;gap:10px;margin-bottom:12px}.ops-detail{display:grid;gap:12px}.timeline{display:grid;gap:0}.timeline-row{display:grid;grid-template-columns:18px 1fr;gap:10px;position:relative;padding-bottom:16px}.timeline-row:before{content:"";position:absolute;left:8px;top:14px;bottom:-2px;width:1px;background:var(--line)}.timeline-row:last-child:before{display:none}.timeline-dot{width:9px;height:9px;border-radius:50%;background:var(--brand);margin-top:5px;z-index:1}.timeline-title{font-size:13px;font-weight:850}.timeline-copy{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.promo-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.promo-metric{background:#f6f8f6;border-radius:13px;padding:12px}.promo-type{font-size:13px;font-weight:900}.promo-price{font:900 18px/1.1 "Arial Black",Arial,sans-serif;margin-top:8px}.promo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.promo-actions .btn{flex:1 1 150px}.ops-modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(7,19,13,.56);display:grid;place-items:end center;padding:16px 12px calc(16px + env(safe-area-inset-bottom));backdrop-filter:blur(5px)}.ops-modal{width:min(100%,540px);background:#fff;border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.24);max-height:86dvh;overflow:auto}.ops-modal h2{margin:0;font-size:20px}.ops-modal p{font-size:13px;color:var(--ink-soft);line-height:1.45}.ops-form{display:grid;gap:12px;margin-top:14px}.ops-field{display:grid;gap:6px}.ops-field label{font-size:12px;font-weight:850}.ops-field input,.ops-field select{width:100%;border:1px solid #c9d7cf;background:#fff;color:var(--ink);border-radius:13px;padding:12px 13px;font-size:16px}.ops-modal-actions{display:flex;gap:8px;margin-top:16px}.ops-modal-actions .btn{flex:1}.ops-alert{padding:12px;border-radius:13px;background:var(--warning);color:#665000;font-size:12px;line-height:1.45}.ops-danger{background:var(--danger);color:#8a2924}.ops-skeleton{height:88px;border-radius:17px;background:linear-gradient(90deg,#eef2ef 25%,#f7f9f7 50%,#eef2ef 75%);background-size:200% 100%;animation:opsShimmer 1.2s infinite}@keyframes opsShimmer{to{background-position:-200% 0}}@media(prefers-reduced-motion:reduce){.ops-skeleton{animation:none}}@media(min-width:760px){.ops-card-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-modal-backdrop{place-items:center}.promo-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .order-card{display:grid;gap:10px}.order-card:hover,.promo-card:hover{border-color:#b7c7be;box-shadow:0 8px 24px rgba(16,35,26,.05)}.order-top,.promo-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.order-id,.promo-item-id{font:700 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-soft)}.order-value{font:900 16px/1.1 "Arial Black",Arial,sans-serif}.order-product{display:flex;gap:9px;align-items:center}.order-product-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#edf2ef}.order-product-copy{min-width:0}.order-product-title{font-size:13px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-product-meta{font-size:11px;color:var(--ink-soft);margin-top:3px}.order-foot,.promo-foot{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.ops-back{display:flex;align-items:center;gap:10px;margin-bottom:12px}.ops-detail{display:grid;gap:12px}.timeline{display:grid;gap:0}.timeline-row{display:grid;grid-template-columns:18px 1fr;gap:10px;position:relative;padding-bottom:16px}.timeline-row:before{content:"";position:absolute;left:8px;top:14px;bottom:-2px;width:1px;background:var(--line)}.timeline-row:last-child:before{display:none}.timeline-dot{width:9px;height:9px;border-radius:50%;background:var(--brand);margin-top:5px;z-index:1}.timeline-title{font-size:13px;font-weight:850}.timeline-copy{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.promo-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.promo-metric{background:#f6f8f6;border-radius:13px;padding:12px}.promo-type{font-size:13px;font-weight:900}.promo-price{font:900 18px/1.1 "Arial Black",Arial,sans-serif;margin-top:8px}.promo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.promo-actions .btn{flex:1 1 150px}.promo-groups{display:grid;gap:14px;margin-top:14px}.promo-group{display:grid;gap:8px}.promo-section-title{font-size:11px;font-weight:900;letter-spacing:.065em;text-transform:uppercase;color:var(--ink-soft);padding:0 2px}.promo-section-list{display:grid;gap:8px}.promo-entry{background:#f6f8f6;border-radius:13px;padding:11px}.promo-entry-available{border:1px dashed #d3ddd7;background:#fafbf9}.promo-no-price{font-size:11px;font-weight:800;color:var(--ink-soft);text-align:right;max-width:110px}.ops-modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(7,19,13,.56);display:grid;place-items:end center;padding:16px 12px calc(16px + env(safe-area-inset-bottom));backdrop-filter:blur(5px)}.ops-modal{width:min(100%,540px);background:#fff;border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.24);max-height:86dvh;overflow:auto}.ops-modal h2{margin:0;font-size:20px}.ops-modal p{font-size:13px;color:var(--ink-soft);line-height:1.45}.ops-form{display:grid;gap:12px;margin-top:14px}.ops-field{display:grid;gap:6px}.ops-field label{font-size:12px;font-weight:850}.ops-field input,.ops-field select{width:100%;border:1px solid #c9d7cf;background:#fff;color:var(--ink);border-radius:13px;padding:12px 13px;font-size:16px}.ops-modal-actions{display:flex;gap:8px;margin-top:16px}.ops-modal-actions .btn{flex:1}.ops-alert{padding:12px;border-radius:13px;background:var(--warning);color:#665000;font-size:12px;line-height:1.45}.ops-danger{background:var(--danger);color:#8a2924}.ops-skeleton{height:88px;border-radius:17px;background:linear-gradient(90deg,#eef2ef 25%,#f7f9f7 50%,#eef2ef 75%);background-size:200% 100%;animation:opsShimmer 1.2s infinite}@keyframes opsShimmer{to{background-position:-200% 0}}@media(prefers-reduced-motion:reduce){.ops-skeleton{animation:none}}@media(min-width:760px){.ops-card-list{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-modal-backdrop{place-items:center}.promo-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
   `;
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.appendChild(style);
+
+  const PROMOTION_TYPE_LABELS = {
+    SELLER_CAMPAIGN: 'Campanha do vendedor',
+    PRICE_DISCOUNT: 'Desconto individual',
+    SELLER_COUPON_CAMPAIGN: 'Cupom do vendedor'
+  };
+  const PROMOTION_GROUP_ORDER = ['active', 'scheduled', 'available', 'finished', 'other'];
+  const PROMOTION_GROUP_LABELS = {
+    active: 'Promoções ativas',
+    scheduled: 'Programadas',
+    available: 'Oportunidades disponíveis',
+    finished: 'Encerradas',
+    other: 'Outras condições'
+  };
 
   const ops = {
     orders: [],
@@ -25,6 +39,39 @@
   function statusText(status) {
     const map = { paid:'Pago', confirmed:'Confirmado', payment_required:'Aguardando pagamento', payment_in_process:'Pagamento em análise', partially_paid:'Parcialmente pago', cancelled:'Cancelado', invalid:'Inválido', started:'Ativa', pending:'Programada', candidate:'Disponível', finished:'Finalizada', sync_requested:'Ativando', restore_requested:'Removendo' };
     return map[String(status || '').toLowerCase()] || String(status || '—');
+  }
+  function promotionTypeLabel(type) {
+    const key = String(type || '').trim().toUpperCase();
+    return PROMOTION_TYPE_LABELS[key] || String(type || 'Promoção');
+  }
+  function promotionGroup(status) {
+    const key = String(status || '').trim().toLowerCase();
+    if (key === 'started' || key === 'sync_requested') return 'active';
+    if (key === 'pending') return 'scheduled';
+    if (key === 'candidate') return 'available';
+    if (key === 'finished' || key === 'restore_requested') return 'finished';
+    return 'other';
+  }
+  function promotionPriceText(promo, currency) {
+    const group = promotionGroup(promo?.status);
+    const numeric = promo?.price == null ? NaN : Number(promo.price);
+    if (group === 'available' && (!Number.isFinite(numeric) || numeric === 0)) return 'Sem preço definido';
+    return promo?.price != null ? fmtMoney(promo.price, currency) : '—';
+  }
+  function promotionGroupsMarkup(promos, item) {
+    const groups = new Map(PROMOTION_GROUP_ORDER.map(key => [key, []]));
+    for (const promo of promos) groups.get(promotionGroup(promo.status))?.push(promo);
+    return PROMOTION_GROUP_ORDER.map(group => {
+      const rows = groups.get(group) || [];
+      if (!rows.length) return '';
+      const body = rows.map(p => {
+        const price = promotionPriceText(p, item.currency_id);
+        const availableNoPrice = group === 'available' && price === 'Sem preço definido';
+        const canEnd = p.type === 'PRICE_DISCOUNT' && ['started','pending','sync_requested'].includes(String(p.status).toLowerCase());
+        return `<div class="promo-entry${group === 'available' ? ' promo-entry-available' : ''}"><div class="promo-top"><div><strong style="font-size:12px">${e(promotionTypeLabel(p.type))}</strong><div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${e(statusText(p.status))}</div></div><div${availableNoPrice?' class="promo-no-price"':' style="font-weight:900"'}>${e(price)}</div></div>${p.original_price!=null?`<div style="font-size:11px;color:var(--ink-soft);margin-top:6px">Original: ${e(fmtMoney(p.original_price,item.currency_id))}${p.end_date?` · até ${e(dateTime(p.end_date))}`:''}</div>`:''}${canEnd?`<div class="promo-actions"><button class="btn btn-danger end-discount" type="button" data-item="${e(item.item_id)}">Encerrar desconto</button></div>`:''}</div>`;
+      }).join('');
+      return `<section class="promo-group"><div class="promo-section-title">${e(PROMOTION_GROUP_LABELS[group])}</div><div class="promo-section-list">${body}</div></section>`;
+    }).join('');
   }
   function automationPill(a) {
     if (!a) return '<span class="pill pill-neutral">Sem execução</span>';
@@ -50,8 +97,8 @@
       <div id="orderDetailPage" class="hidden"></div>`;
     if (promos) promos.innerHTML = `
       <div class="page-head"><div><div class="eyebrow">Comercial</div><h1 class="page-title">Promoções</h1><p class="page-copy">Consulte campanhas de cada anúncio e crie descontos individuais com confirmação explícita.</p></div><button id="promosRefresh" class="icon-btn" type="button" aria-label="Atualizar promoções"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 11a8 8 0 1 0 1 5"/><path d="M20 4v7h-7"/></svg></button></div>
-      <div class="section-card" style="margin-top:0"><div class="section-head"><h2>Promoções por anúncio</h2><button id="newDiscount" class="btn btn-primary" type="button">Novo desconto</button></div><p class="page-copy">Todas as campanhas do Mercado Livre aparecem aqui. Criação e encerramento pelo painel estão habilitados para desconto individual (PRICE_DISCOUNT).</p></div>
-      <div id="promosMsg" aria-live="polite"></div><div id="promosList" class="ops-card-list" style="margin-top:12px"></div>`;
+      <div class="section-card" style="margin-top:0"><div class="section-head"><h2>Promoções por anúncio</h2></div><p class="page-copy">Veja separadamente o que está ativo, programado ou apenas disponível. Para criar um desconto individual, use o botão dentro do anúncio correspondente.</p></div>
+      <div id="promosMsg" aria-live="polite"></div><div id="promosList" class="ops-card-list" data-promo-direct="1" style="margin-top:12px"></div>`;
   }
 
   async function loadOrders({ force = false } = {}) {
@@ -132,7 +179,15 @@
   function renderPromotions() {
     const list=document.getElementById('promosList'); if(!list)return;
     const items=state?.items||[]; if(!items.length){list.innerHTML='<div class="empty"><h3>Sem anúncios carregados</h3><p>Conecte a conta e atualize os anúncios primeiro.</p></div>';return}
-    list.innerHTML=items.map(item=>{const row=ops.promotionsByItem.get(String(item.item_id));const promos=row?.promotions||[];const active=promos.filter(p=>['started','pending','sync_requested'].includes(String(p.status).toLowerCase()));return `<article class="promo-card"><div class="promo-top"><div><div class="promo-type">${e(item.title||item.item_id)}</div><div class="promo-item-id">${e(item.item_id)}</div></div><span class="pill ${active.length?'pill-success':'pill-neutral'}">${active.length?`${active.length} ativa${active.length===1?'':'s'}`:'Sem promoção ativa'}</span></div>${promos.length?`<div style="display:grid;gap:8px;margin-top:12px">${promos.map(p=>`<div style="background:#f6f8f6;border-radius:13px;padding:11px"><div class="promo-top"><div><strong style="font-size:12px">${e(p.type)}</strong><div style="font-size:11px;color:var(--ink-soft);margin-top:3px">${e(statusText(p.status))}</div></div><div style="font-weight:900">${p.price!=null?e(fmtMoney(p.price,item.currency_id)):'—'}</div></div>${p.original_price!=null?`<div style="font-size:11px;color:var(--ink-soft);margin-top:6px">Original: ${e(fmtMoney(p.original_price,item.currency_id))}${p.end_date?` · até ${e(dateTime(p.end_date))}`:''}</div>`:''}${p.type==='PRICE_DISCOUNT'&&['started','pending','sync_requested'].includes(String(p.status).toLowerCase())?`<div class="promo-actions"><button class="btn btn-danger end-discount" type="button" data-item="${e(item.item_id)}">Encerrar desconto</button></div>`:''}</div>`).join('')}</div>`:'<p class="page-copy" style="margin-top:10px">Nenhuma promoção retornada para este anúncio.</p>'}<div class="promo-actions"><button class="btn btn-secondary create-discount" type="button" data-item="${e(item.item_id)}">Criar desconto</button>${item.permalink?`<a class="btn btn-ghost" target="_blank" rel="noopener" href="${e(item.permalink)}">Ver anúncio</a>`:''}</div></article>`}).join('');
+    list.innerHTML=items.map(item=>{
+      const row=ops.promotionsByItem.get(String(item.item_id));
+      const promos=row?.promotions||[];
+      const activeCount=promos.filter(p=>['started','sync_requested'].includes(String(p.status).toLowerCase())).length;
+      const scheduledCount=promos.filter(p=>String(p.status).toLowerCase()==='pending').length;
+      const badgeText=activeCount?`${activeCount} ativa${activeCount===1?'':'s'}`:scheduledCount?`${scheduledCount} programada${scheduledCount===1?'':'s'}`:'Sem promoção ativa';
+      const badgeClass=activeCount?'pill-success':'pill-neutral';
+      return `<article class="promo-card"><div class="promo-top"><div><div class="promo-type">${e(item.title||item.item_id)}</div><div class="promo-item-id">${e(item.item_id)}</div></div><span class="pill ${badgeClass}">${e(badgeText)}</span></div>${promos.length?`<div class="promo-groups">${promotionGroupsMarkup(promos,item)}</div>`:'<p class="page-copy" style="margin-top:10px">Nenhuma promoção retornada para este anúncio.</p>'}<div class="promo-actions"><button class="btn btn-secondary create-discount" type="button" data-item="${e(item.item_id)}">Criar desconto</button>${item.permalink?`<a class="btn btn-ghost" target="_blank" rel="noopener" href="${e(item.permalink)}">Ver anúncio</a>`:''}</div></article>`;
+    }).join('');
     list.querySelectorAll('.create-discount').forEach(b=>b.addEventListener('click',()=>openDiscountModal(b.dataset.item)));
     list.querySelectorAll('.end-discount').forEach(b=>b.addEventListener('click',()=>openEndModal(b.dataset.item)));
   }
@@ -149,13 +204,12 @@
 
   function openEndModal(itemId){const item=state.items.find(i=>String(i.item_id)===String(itemId));modal(`<h2 id="opsModalTitle">Encerrar desconto?</h2><p>${e(item?.title||itemId)}</p><div class="ops-alert ops-danger">A promoção PRICE_DISCOUNT será removida deste anúncio. Essa ação altera a oferta no Mercado Livre imediatamente.</div><div id="endPromoMsg" aria-live="polite"></div><div class="ops-modal-actions"><button id="cancelEnd" class="btn btn-ghost" type="button">Manter promoção</button><button id="confirmEnd" class="btn btn-danger" type="button">Encerrar desconto</button></div>`);document.getElementById('cancelEnd').onclick=closeModal;document.getElementById('confirmEnd').onclick=async()=>{const btn=document.getElementById('confirmEnd');setBusy(btn,true,'Encerrando');try{await api(`/api/promotions?item_id=${encodeURIComponent(itemId)}&promotion_type=PRICE_DISCOUNT&confirm=true`,{method:'DELETE'});closeModal();ops.promotionsLoaded=false;await loadPromotions({force:true})}catch(err){showNotice(document.getElementById('endPromoMsg'),err.data?.details?.message||err.message,'error');setBusy(btn,false)}}}
 
-  async function renderItemPromotions(itemId){const panel=document.getElementById('tab-promocoes');if(!panel||!itemId)return;panel.innerHTML='<div class="ops-skeleton"></div>';try{const data=await api(`/api/promotions?item_id=${encodeURIComponent(itemId)}`);const row=data.items?.[0];const promos=row?.promotions||[];panel.innerHTML=`<div class="section-card"><div class="section-head"><h2>Promoções deste anúncio</h2><button id="itemNewDiscount" class="btn btn-primary" type="button">Novo desconto</button></div>${promos.length?`<div style="display:grid;gap:9px">${promos.map(p=>`<div class="kv"><div class="kv-label">${e(p.type)} · ${e(statusText(p.status))}</div><div class="kv-value">${p.price!=null?e(fmtMoney(p.price,state.items.find(i=>i.item_id===itemId)?.currency_id)):'Sem preço ativo'}</div>${p.end_date?`<div class="mini-meta">Até ${e(dateTime(p.end_date))}</div>`:''}</div>`).join('')}</div>`:'<div class="empty"><h3>Sem promoção</h3><p>Este anúncio não possui promoção ativa ou candidata retornada pela API.</p></div>'}</div>`;document.getElementById('itemNewDiscount')?.addEventListener('click',()=>openDiscountModal(itemId))}catch(err){panel.innerHTML=`<div class="notice notice-error">${e(err.message)}</div>`}}
+  async function renderItemPromotions(itemId){const panel=document.getElementById('tab-promocoes');if(!panel||!itemId)return;panel.innerHTML='<div class="ops-skeleton"></div>';try{const data=await api(`/api/promotions?item_id=${encodeURIComponent(itemId)}`);const row=data.items?.[0];const promos=row?.promotions||[];const currency=state.items.find(i=>i.item_id===itemId)?.currency_id;panel.innerHTML=`<div class="section-card"><div class="section-head"><h2>Promoções deste anúncio</h2><button id="itemNewDiscount" class="btn btn-primary" type="button">Novo desconto</button></div>${promos.length?`<div style="display:grid;gap:9px">${promos.map(p=>`<div class="kv"><div class="kv-label">${e(promotionTypeLabel(p.type))} · ${e(statusText(p.status))}</div><div class="kv-value">${e(promotionPriceText(p,currency))}</div>${p.end_date?`<div class="mini-meta">Até ${e(dateTime(p.end_date))}</div>`:''}</div>`).join('')}</div>`:'<div class="empty"><h3>Sem promoção</h3><p>Este anúncio não possui promoção ativa ou candidata retornada pela API.</p></div>'}</div>`;document.getElementById('itemNewDiscount')?.addEventListener('click',()=>openDiscountModal(itemId))}catch(err){panel.innerHTML=`<div class="notice notice-error">${e(err.message)}</div>`}}
 
   function bind() {
     replaceViews();
     document.getElementById('ordersRefresh')?.addEventListener('click',()=>loadOrders({force:true}));
     document.getElementById('promosRefresh')?.addEventListener('click',()=>{ops.promotionsLoaded=false;loadPromotions({force:true})});
-    document.getElementById('newDiscount')?.addEventListener('click',()=>{const first=state?.items?.[0];if(first)openDiscountModal(first.item_id);else showNotice(document.getElementById('promosMsg'),'Carregue os anúncios antes de criar uma promoção.','warning')});
     document.getElementById('ordersSearch')?.addEventListener('input',ev=>{ops.orderQ=ev.target.value;document.getElementById('ordersClear')?.classList.toggle('hidden',!ops.orderQ);clearTimeout(bind.searchTimer);bind.searchTimer=setTimeout(()=>loadOrders({force:true}),300)});
     document.getElementById('ordersClear')?.addEventListener('click',()=>{ops.orderQ='';const input=document.getElementById('ordersSearch');if(input){input.value='';input.focus()}document.getElementById('ordersClear')?.classList.add('hidden');loadOrders({force:true})});
     document.querySelectorAll('.order-filter').forEach(btn=>btn.addEventListener('click',()=>{ops.orderStatus=btn.dataset.orderStatus;document.querySelectorAll('.order-filter').forEach(x=>x.classList.toggle('active',x===btn));loadOrders({force:true})}));

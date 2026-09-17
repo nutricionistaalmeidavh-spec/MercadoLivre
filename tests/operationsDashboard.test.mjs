@@ -43,22 +43,23 @@ test('mobile operations UI avoids browser-native confirmation dialogs', () => {
   assert.match(ui, /PRICE_DISCOUNT/);
 });
 
-test('promotions UI separates active campaigns from available opportunities', () => {
-  assert.match(promoUi, /Promoções ativas/);
-  assert.match(promoUi, /Oportunidades disponíveis/);
-  assert.match(promoUi, /Campanha do vendedor/);
-  assert.match(promoUi, /Desconto individual/);
-  assert.match(promoUi, /Cupom do vendedor/);
-  assert.match(promoUi, /promotionTypeLabel/);
-  assert.match(promoUi, /promotionPriceMarkup/);
-  assert.match(promoUi, /getElementById\('newDiscount'\)\?\.remove\(\)/);
-  assert.match(promoUi, /Sem preço definido/);
+test('promotions are rendered directly with business labels and grouped states', () => {
+  assert.match(ui, /PROMOTION_TYPE_LABELS/);
+  assert.match(ui, /Campanha do vendedor/);
+  assert.match(ui, /Desconto individual/);
+  assert.match(ui, /Cupom do vendedor/);
+  assert.match(ui, /Promoções ativas/);
+  assert.match(ui, /Programadas/);
+  assert.match(ui, /Oportunidades disponíveis/);
+  assert.match(ui, /Encerradas/);
+  assert.match(ui, /Sem preço definido/);
+  assert.match(ui, /data-promo-direct="1"/);
+  assert.doesNotMatch(ui, /id="newDiscount"/);
 });
 
-test('promotions observer is scoped and text updates are idempotent', () => {
+test('legacy promotions clarity layer yields to direct renderer', () => {
   assert.doesNotMatch(promoUi, /observer\.observe\(document\.body/);
-  assert.match(promoUi, /getElementById\('promosList'\)/);
-  assert.match(promoUi, /intro\.textContent !== introText/);
+  assert.match(promoUi, /dataset\.promoDirect === '1'/);
 });
 
 test('admin inlines promotions clarity bundle and does not load it externally', () => {
