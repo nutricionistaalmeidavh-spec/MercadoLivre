@@ -1,4 +1,6 @@
 import { listSellers, queueStats } from "./repository.mjs";
+import { listAuditEvents } from "./audit.mjs";
+import { listAlerts } from "./alerts.mjs";
 
 function rows(result) {
   return Array.isArray(result?.results) ? result.results : [];
@@ -9,7 +11,7 @@ export async function handleOperationsApi(env, request) {
 
   const url = new URL(request.url);
   const limit = Math.min(50, Math.max(5, Number(url.searchParams.get("limit") || 20)));
-  const [sellers, queue, webhooks, runs, attempts, dbCheck] = await Promise.all([
+  const [sellers, queue, webhooks, runs, attempts, audit_events, alerts, dbCheck] = await Promise.all([
     listSellers(env),
     queueStats(env),
     env.DB.prepare(`
@@ -21,9 +23,11 @@ export async function handleOperationsApi(env, request) {
       FROM automation_runs ORDER BY updated_at DESC LIMIT ?
     `).bind(limit).all(),
     env.DB.prepare(`
-      SELECT id, order_id, pack_id, status, http_status, created_at
+      SELECT id, order_id, pack_id, status, http_status, moderation_status, created_at
       FROM message_attempts ORDER BY created_at DESC LIMIT ?
     `).bind(limit).all(),
+    listAuditEvents(env, { limit }),
+    listAlerts(env, { limit, status: "active" }),
     env.DB.prepare("SELECT 1 AS ok").first()
   ]);
 
@@ -49,7 +53,9 @@ export async function handleOperationsApi(env, request) {
     activity: {
       webhooks: rows(webhooks),
       automation_runs: rows(runs),
-      message_attempts: rows(attempts)
+      message_attempts: rows(attempts),
+      audit_events,
+      alerts
     }
   };
 }
