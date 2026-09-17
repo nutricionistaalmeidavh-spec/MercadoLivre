@@ -54,6 +54,12 @@ test('promotions UI separates active campaigns from available opportunities', ()
   assert.match(promoUi, /Sem preço definido/);
 });
 
+test('promotions observer is scoped and text updates are idempotent', () => {
+  assert.doesNotMatch(promoUi, /observer\.observe\(document\.body/);
+  assert.match(promoUi, /getElementById\('promosList'\)/);
+  assert.match(promoUi, /intro\.textContent !== introText/);
+});
+
 test('operations assets are included in Cloudflare static assets', () => {
   assert.match(assets, /!admin-operations\.js/);
   assert.match(assets, /!admin-promotions-clarity\.js/);
