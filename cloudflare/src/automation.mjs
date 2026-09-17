@@ -13,6 +13,8 @@ import {
   fetchOrder,
   sendOtherMessage
 } from "./mercadolivre.mjs";
+import { appendAuditEvent } from "./audit.mjs";
+import { upsertAlert } from "./alerts.mjs";
 
 const AUTOMATION_TYPE = "AFTER_SALE";
 const AUTOMATION_VERSION = "v2-item-rules";
@@ -21,6 +23,24 @@ const FINAL_MESSAGE_MAX_LENGTH = 2000;
 const TEMPLATE_TOKEN = /\{\{\s*(saudacao|cliente|produto|pedido|link_produto)\s*\}\}/gi;
 const TEMPLATE_ANY_TOKEN = /\{\{\s*([^{}]+?)\s*\}\}/g;
 const PRODUCT_LINK_TOKEN = /\{\{\s*link_produto\s*\}\}/i;
+
+const POST_SALE_ACTIONS = Object.freeze({
+  skipped: "post_sale.skipped",
+  dryRun: "post_sale.dry_run",
+  sent: "post_sale.sent",
+  moderated: "post_sale.moderated",
+  failed: "post_sale.failed"
+});
+
+const ALERT_REASON = Object.freeze({
+  missingProductLink: "MISSING_PRODUCT_LINK",
+  buyerFallback: "BUYER_IDENTITY_FALLBACK",
+  moderated: "MESSAGE_MODERATED",
+  sendFailed: "MESSAGE_SEND_FAILED",
+  noCap: "NO_OTHER_MESSAGE_CAP",
+  capsUnavailable: "CAPS_UNAVAILABLE",
+  guideUnavailable: "ACTION_GUIDE_UNAVAILABLE"
+});
 
 export function parseOrderId(resource) {
   const match = String(resource || "").match(/\/orders\/(\d+)/);
@@ -32,19 +52,11 @@ function idempotencyKey(sellerId, orderId) {
 }
 
 async function setRun(env, values) {
-  await upsertAutomationRun(env, {
-    ...values,
-    automationType: AUTOMATION_TYPE,
-    automationVersion: AUTOMATION_VERSION
-  });
+  await upsertAutomationRun(env, { ...values, automationType: AUTOMATION_TYPE, automationVersion: AUTOMATION_VERSION });
 }
 
 function cleanDisplayText(value, maxLength = 120) {
-  return String(value || "")
-    .replace(/[\u0000-\u001F\u007F]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+  return String(value || "").replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
 export function resolveBuyerDisplayName(order) {
@@ -54,13 +66,13 @@ export function resolveBuyerDisplayName(order) {
   return nickname || "cliente";
 }
 
+function hasBuyerIdentity(order) {
+  return Boolean(cleanDisplayText(order?.buyerFirstName) || cleanDisplayText(order?.buyerNickname));
+}
+
 export function greetingForDate(now = new Date()) {
   const date = now instanceof Date ? now : new Date(now);
-  const parts = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: POST_SALE_TIME_ZONE,
-    hour: "2-digit",
-    hourCycle: "h23"
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("pt-BR", { timeZone: POST_SALE_TIME_ZONE, hour: "2-digit", hourCycle: "h23" }).formatToParts(date);
   const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
   if (hour >= 5 && hour < 12) return "bom dia";
   if (hour >= 12 && hour < 18) return "boa tarde";
@@ -79,11 +91,7 @@ export function resolvePostSaleTemplate(template, { order, rule, now = new Date(
 }
 
 function unresolvedVariables(text) {
-  return [...new Set(
-    [...String(text || "").matchAll(TEMPLATE_ANY_TOKEN)]
-      .map((match) => String(match[1] || "").trim().toLowerCase())
-      .filter(Boolean)
-  )];
+  return [...new Set([...String(text || "").matchAll(TEMPLATE_ANY_TOKEN)].map((match) => String(match[1] || "").trim().toLowerCase()).filter(Boolean))];
 }
 
 function validateFinalMessage(text) {
@@ -113,21 +121,17 @@ export function buildMessageFromRules(order, rules, { now = new Date() } = {}) {
   const uniqueMessages = [];
   const seen = new Set();
   for (const rule of selected) {
-    const resolved = resolvePostSaleTemplate(rule.message, { order, rule, now });
-    const checked = validateFinalMessage(resolved);
+    const checked = validateFinalMessage(resolvePostSaleTemplate(rule.message, { order, rule, now }));
     if (!checked.ok) return checked;
     if (seen.has(checked.text)) continue;
     seen.add(checked.text);
     uniqueMessages.push({ rule, text: checked.text });
   }
 
-  const combined = uniqueMessages.length === 1
-    ? uniqueMessages[0].text
-    : uniqueMessages.map(({ rule, text }) => {
-      const title = cleanDisplayText(rule.item_title || rule.item_id || "Produto", 300);
-      return `${title}:\n${text}`;
-    }).join("\n\n");
-
+  const combined = uniqueMessages.length === 1 ? uniqueMessages[0].text : uniqueMessages.map(({ rule, text }) => {
+    const title = cleanDisplayText(rule.item_title || rule.item_id || "Produto", 300);
+    return `${title}:\n${text}`;
+  }).join("\n\n");
   return validateFinalMessage(combined);
 }
 
@@ -135,20 +139,34 @@ function buildDeliveryContext(order, rules, finalText) {
   const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
   const items = (order.itemIds || []).map((itemId) => {
     const rule = byId.get(String(itemId)) || {};
-    return {
-      item_id: String(itemId),
-      title: cleanDisplayText(rule.item_title || itemId, 300),
-      product_link: String(rule.product_link || "").trim()
-    };
+    return { item_id: String(itemId), title: cleanDisplayText(rule.item_title || itemId, 300), product_link: String(rule.product_link || "").trim() };
   });
-  return {
-    order_id: String(order.orderId || ""),
-    pack_id: order.packId == null ? null : String(order.packId),
-    buyer: resolveBuyerDisplayName(order),
-    item_ids: items.map((item) => item.item_id),
-    items,
-    final_text: String(finalText || "")
-  };
+  return { order_id: String(order.orderId || ""), pack_id: order.packId == null ? null : String(order.packId), buyer: resolveBuyerDisplayName(order), item_ids: items.map((item) => item.item_id), items, final_text: String(finalText || "") };
+}
+
+async function auditOutcome(env, { sellerId, orderId, action, reason = null, metadata = {} }) {
+  await appendAuditEvent(env, {
+    actorId: `seller:${sellerId}`,
+    action,
+    entityType: "order",
+    entityId: String(orderId),
+    metadata: { seller_id: String(sellerId), reason, ...metadata }
+  });
+}
+
+async function raisePostSaleAlert(env, { orderId, reason, title, severity = "warning", metadata = {} }) {
+  return upsertAlert(env, {
+    id: `post-sale:${orderId}:${reason}`,
+    entityRef: { kind: "order", id: String(orderId) },
+    title,
+    severity,
+    reason,
+    metadata
+  });
+}
+
+async function auditSkipped(env, sellerId, orderId, reason, metadata = {}) {
+  await auditOutcome(env, { sellerId, orderId, action: POST_SALE_ACTIONS.skipped, reason, metadata });
 }
 
 export function isRetryableProcessingError(error) {
@@ -165,17 +183,20 @@ export async function processOrderEvent(env, payload) {
 
   const key = idempotencyKey(sellerId, orderId);
   const prior = await getAutomationRun(env, key);
-  if (prior && ["SENT", "DRY_RUN", "SKIPPED"].includes(prior.state)) {
-    return { duplicate: true, state: prior.state, reason: prior.reason || null };
-  }
+  if (prior && ["SENT", "DRY_RUN", "SKIPPED"].includes(prior.state)) return { duplicate: true, state: prior.state, reason: prior.reason || null };
 
   await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "RECEIVED" });
   const order = await fetchOrder(env, orderId, sellerId);
   await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "ORDER_FETCHED" });
 
+  if (!hasBuyerIdentity(order)) {
+    await raisePostSaleAlert(env, { orderId, reason: ALERT_REASON.buyerFallback, title: "Comprador sem nome disponível", severity: "info", metadata: { seller_id: sellerId, fallback: "cliente" } });
+  }
+
   const eligibility = evaluateOrderEligibility(order);
   if (!eligibility.eligible) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: eligibility.reason });
+    await auditSkipped(env, sellerId, orderId, eligibility.reason);
     return { skipped: true, reason: eligibility.reason };
   }
 
@@ -183,6 +204,10 @@ export async function processOrderEvent(env, payload) {
   const configured = buildMessageFromRules(order, rules);
   if (!configured.ok) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: configured.reason });
+    await auditSkipped(env, sellerId, orderId, configured.reason, { item_ids: order.itemIds });
+    if (configured.reason.startsWith(ALERT_REASON.missingProductLink)) {
+      await raisePostSaleAlert(env, { orderId, reason: ALERT_REASON.missingProductLink, title: "Link de entrega ausente", severity: "warning", metadata: { configured_reason: configured.reason, item_ids: order.itemIds } });
+    }
     return { skipped: true, reason: configured.reason };
   }
 
@@ -190,35 +215,40 @@ export async function processOrderEvent(env, payload) {
   const policy = await fetchMessagePolicy(env, order.packId, sellerId, configured.text);
   if (!policy.allowed) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: policy.reason });
+    await auditSkipped(env, sellerId, orderId, policy.reason, { item_ids: order.itemIds });
+    if ([ALERT_REASON.guideUnavailable, ALERT_REASON.capsUnavailable, ALERT_REASON.noCap].includes(policy.reason)) {
+      const titles = {
+        [ALERT_REASON.guideUnavailable]: "Action guide indisponível",
+        [ALERT_REASON.capsUnavailable]: "Limites de mensagens indisponíveis",
+        [ALERT_REASON.noCap]: "Limite de mensagem pós-venda esgotado"
+      };
+      await raisePostSaleAlert(env, { orderId, reason: policy.reason, title: titles[policy.reason], severity: "warning", metadata: { seller_id: sellerId } });
+    }
     return { skipped: true, reason: policy.reason };
   }
 
   const mode = String(env.ML_AUTOMATION_MODE || "dry-run").toLowerCase();
   if (mode !== "production") {
-    await recordMessageAttempt(env, {
-      idempotencyKey: key,
-      orderId,
-      packId: order.packId,
-      status: "DRY_RUN",
-      httpStatus: 0,
-      response: { reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" },
-      moderationStatus: "not_sent",
-      context: deliveryContext
-    });
+    await recordMessageAttempt(env, { idempotencyKey: key, orderId, packId: order.packId, status: "DRY_RUN", httpStatus: 0, response: { reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" }, moderationStatus: "not_sent", context: deliveryContext });
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "DRY_RUN", reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" });
+    await auditOutcome(env, { sellerId, orderId, action: POST_SALE_ACTIONS.dryRun, reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT", metadata: { item_ids: order.itemIds, buyer: deliveryContext.buyer } });
     return { dryRun: true, orderId, packId: order.packId, itemIds: order.itemIds, charLimit: policy.charLimit };
   }
 
-  const response = await sendOtherMessage(env, {
-    packId: order.packId,
-    sellerId,
-    orderId,
-    text: policy.text,
-    idempotencyKey: key,
-    deliveryContext
-  });
+  let response;
+  try {
+    response = await sendOtherMessage(env, { packId: order.packId, sellerId, orderId, text: policy.text, idempotencyKey: key, deliveryContext });
+  } catch (error) {
+    const moderated = Boolean(error?.moderationStatus && error.moderationStatus !== "unknown");
+    const reason = moderated ? ALERT_REASON.moderated : ALERT_REASON.sendFailed;
+    await auditOutcome(env, { sellerId, orderId, action: moderated ? POST_SALE_ACTIONS.moderated : POST_SALE_ACTIONS.failed, reason, metadata: { status_code: Number(error?.statusCode || 0), moderation_status: error?.moderationStatus || null } });
+    await raisePostSaleAlert(env, { orderId, reason, title: moderated ? "Mensagem bloqueada pelo Mercado Livre" : "Falha no envio pós-venda", severity: moderated ? "warning" : "critical", metadata: { seller_id: sellerId, status_code: Number(error?.statusCode || 0), moderation_status: error?.moderationStatus || null } });
+    throw error;
+  }
+
   const messageId = response?.id || response?.message_id || null;
   await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SENT", reason: "MESSAGE_SENT", messageId });
+  await auditOutcome(env, { sellerId, orderId, action: POST_SALE_ACTIONS.sent, reason: "MESSAGE_SENT", metadata: { message_id: messageId, item_ids: order.itemIds } });
   return { sent: true, orderId, itemIds: order.itemIds, messageId };
 }
 
@@ -227,9 +257,7 @@ export async function processOneQueuedEvent(env) {
   if (!event) return { processed: false };
   try {
     const payload = JSON.parse(event.payload);
-    const result = event.topic === "orders_v2"
-      ? await processOrderEvent(env, payload)
-      : { ignored: true, reason: "UNSUPPORTED_TOPIC" };
+    const result = event.topic === "orders_v2" ? await processOrderEvent(env, payload) : { ignored: true, reason: "UNSUPPORTED_TOPIC" };
     await finishWebhook(env, event.event_key);
     return { processed: true, eventKey: event.event_key, result };
   } catch (error) {

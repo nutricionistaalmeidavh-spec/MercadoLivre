@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "systemId": "mercado-livre-artisys",
+  "mode": "web",
+  "defaultEnvironment": "production-readonly",
+  "environments": {
+    "production-readonly": {
+      "baseURL": "https://artisys-mercadolivre.nutricionistaalmeidavh.workers.dev"
+    }
+  },
+  "flows": {
+    "post-sale": "flows/post-sale.json"
+  },
+  "qaProfiles": {
+    "quick": {
+      "flows": ["post-sale"],
+      "criticalFlows": ["post-sale"],
+      "includeDesktop": false,
+      "includeNetwork": false
+    },
+    "full": {
+      "flows": ["post-sale"],
+      "criticalFlows": ["post-sale"],
+      "includeDesktop": false,
+      "includeNetwork": true
+    },
+    "release": {
+      "flows": ["post-sale"],
+      "criticalFlows": ["post-sale"],
+      "includeDesktop": false,
+      "includeNetwork": true
+    }
+  },
+  "headless": true,
+  "capture": {
+    "video": true,
+    "screenshotEachStep": true
+  }
+}

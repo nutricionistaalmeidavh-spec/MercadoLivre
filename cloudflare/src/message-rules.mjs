@@ -1,36 +1,29 @@
 import { getValidToken } from "./token-service.mjs";
-import { listItemMessageRules, upsertItemMessageRule } from "./repository.mjs";
+import { getItemMessageRules, listItemMessageRules, upsertItemMessageRule } from "./repository.mjs";
 import { mlRequest } from "./mercadolivre.mjs";
+import { appendAuditEvent } from "./audit.mjs";
+
+const RULE_ACTIONS = Object.freeze({
+  created: "message_rule.created",
+  updated: "message_rule.updated",
+  enabled: "message_rule.enabled",
+  disabled: "message_rule.disabled"
+});
 
 const SHORTENER_HOSTS = new Set([
-  "bit.ly",
-  "tinyurl.com",
-  "t.co",
-  "cutt.ly",
-  "rebrand.ly",
-  "is.gd",
-  "goo.gl",
-  "shorturl.at"
+  "bit.ly", "tinyurl.com", "t.co", "cutt.ly", "rebrand.ly", "is.gd", "goo.gl", "shorturl.at"
 ]);
 
 export function validateProductLink(value) {
   const raw = String(value || "").trim();
   if (!raw) return { ok: true, url: "" };
   if (raw.length > 2048) return { ok: false, reason: "PRODUCT_LINK_TOO_LONG" };
-
   let parsed;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return { ok: false, reason: "PRODUCT_LINK_INVALID" };
-  }
-
+  try { parsed = new URL(raw); } catch { return { ok: false, reason: "PRODUCT_LINK_INVALID" }; }
   if (parsed.protocol !== "https:") return { ok: false, reason: "PRODUCT_LINK_HTTPS_REQUIRED" };
   if (parsed.username || parsed.password) return { ok: false, reason: "PRODUCT_LINK_INVALID" };
-
   const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
   if (SHORTENER_HOSTS.has(host)) return { ok: false, reason: "PRODUCT_LINK_SHORTENER_NOT_ALLOWED" };
-
   return { ok: true, url: parsed.toString() };
 }
 
@@ -58,79 +51,54 @@ async function fetchSellerListings(env, sellerId) {
     error.statusCode = search.status;
     throw error;
   }
-
   const ids = Array.isArray(search.data?.results) ? search.data.results.map(String).filter(Boolean) : [];
   const items = [];
   for (const group of chunk(ids, 20)) {
-    const query = new URLSearchParams({
-      ids: group.join(","),
-      attributes: [
-        "body.id",
-        "body.title",
-        "body.status",
-        "body.thumbnail",
-        "body.permalink",
-        "body.seller_id",
-        "body.price",
-        "body.currency_id",
-        "body.available_quantity",
-        "body.sold_quantity",
-        "body.listing_type_id",
-        "body.condition",
-        "body.category_id",
-        "body.start_time",
-        "body.stop_time"
-      ].join(",")
-    });
+    const query = new URLSearchParams({ ids: group.join(","), attributes: ["body.id","body.title","body.status","body.thumbnail","body.permalink","body.seller_id","body.price","body.currency_id","body.available_quantity","body.sold_quantity","body.listing_type_id","body.condition","body.category_id","body.start_time","body.stop_time"].join(",") });
     const response = await mlRequest(`/items/bulk?${query}`, token.access_token);
     if (!response.ok || !Array.isArray(response.data)) continue;
     for (const entry of response.data) {
       const body = entry?.body || {};
       if (Number(entry?.status_code || 0) >= 400 || String(body.seller_id || "") !== String(sellerId)) continue;
       items.push({
-        item_id: String(body.id || entry?.id || ""),
-        title: String(body.title || ""),
-        status: String(body.status || ""),
-        thumbnail: body.thumbnail || null,
-        permalink: body.permalink || null,
-        price: Number.isFinite(Number(body.price)) ? Number(body.price) : null,
-        currency_id: String(body.currency_id || "BRL"),
+        item_id: String(body.id || entry?.id || ""), title: String(body.title || ""), status: String(body.status || ""),
+        thumbnail: body.thumbnail || null, permalink: body.permalink || null,
+        price: Number.isFinite(Number(body.price)) ? Number(body.price) : null, currency_id: String(body.currency_id || "BRL"),
         available_quantity: Number.isFinite(Number(body.available_quantity)) ? Number(body.available_quantity) : null,
         sold_quantity: Number.isFinite(Number(body.sold_quantity)) ? Number(body.sold_quantity) : null,
-        listing_type_id: String(body.listing_type_id || ""),
-        condition: String(body.condition || ""),
-        category_id: String(body.category_id || ""),
-        start_time: body.start_time || null,
-        stop_time: body.stop_time || null
+        listing_type_id: String(body.listing_type_id || ""), condition: String(body.condition || ""), category_id: String(body.category_id || ""),
+        start_time: body.start_time || null, stop_time: body.stop_time || null
       });
     }
   }
   return items.filter((item) => item.item_id);
 }
 
+function auditAction(previous, enabled) {
+  if (!previous) return RULE_ACTIONS.created;
+  const wasEnabled = Boolean(previous.enabled);
+  if (!wasEnabled && enabled) return RULE_ACTIONS.enabled;
+  if (wasEnabled && !enabled) return RULE_ACTIONS.disabled;
+  return RULE_ACTIONS.updated;
+}
+
+function changedFields(previous, { message, productLink, enabled }) {
+  if (!previous) return ["message", "product_link", "enabled"];
+  const changed = [];
+  if (String(previous.message || "") !== message) changed.push("message");
+  if (String(previous.product_link || "") !== productLink) changed.push("product_link");
+  if (Boolean(previous.enabled) !== enabled) changed.push("enabled");
+  return changed;
+}
+
 export async function handleMessageRulesApi(env, request, sellerId) {
   if (request.method === "GET") {
-    const [items, rules] = await Promise.all([
-      fetchSellerListings(env, sellerId),
-      listItemMessageRules(env, sellerId)
-    ]);
+    const [items, rules] = await Promise.all([fetchSellerListings(env, sellerId), listItemMessageRules(env, sellerId)]);
     const byId = new Map(rules.map((rule) => [String(rule.item_id), rule]));
-    return {
-      seller_id: String(sellerId),
-      mode: String(env.ML_AUTOMATION_MODE || "dry-run"),
-      items: items.map((item) => {
-        const rule = byId.get(item.item_id);
-        return {
-          ...item,
-          rule: rule ? {
-            message: String(rule.message || ""),
-            product_link: String(rule.product_link || ""),
-            enabled: Boolean(rule.enabled),
-            updated_at: Number(rule.updated_at || 0)
-          } : { message: "", product_link: "", enabled: false, updated_at: 0 }
-        };
-      })
-    };
+    return { seller_id: String(sellerId), mode: String(env.ML_AUTOMATION_MODE || "dry-run"), items: items.map((item) => {
+      const rule = byId.get(item.item_id);
+      return { ...item, rule: rule ? { message: String(rule.message || ""), product_link: String(rule.product_link || ""), enabled: Boolean(rule.enabled), updated_at: Number(rule.updated_at || 0) } : { message: "", product_link: "", enabled: false, updated_at: 0 } };
+    }) };
   }
 
   if (request.method === "POST") {
@@ -141,42 +109,28 @@ export async function handleMessageRulesApi(env, request, sellerId) {
     if (!itemId) return { error: "item_id obrigatório.", status: 400 };
     if (enabled && !message) return { error: "Defina a mensagem antes de ativar a automação deste anúncio.", status: 400 };
     if (message.length > 2000) return { error: "Mensagem muito longa para configuração.", status: 400 };
-
     const linkValidation = validateProductLink(body.product_link);
     if (!linkValidation.ok) return { error: productLinkError(linkValidation.reason), status: 400 };
     const productLink = linkValidation.url;
-
-    if (enabled && /\{\{\s*link_produto\s*\}\}/i.test(message) && !productLink) {
-      return { error: "Defina o link de entrega antes de usar {{link_produto}}.", status: 400 };
-    }
+    if (enabled && /\{\{\s*link_produto\s*\}\}/i.test(message) && !productLink) return { error: "Defina o link de entrega antes de usar {{link_produto}}.", status: 400 };
 
     const token = await getValidToken(env, sellerId);
     const itemResponse = await mlRequest(`/items/${encodeURIComponent(itemId)}`, token.access_token);
     if (!itemResponse.ok) return { error: "Anúncio não encontrado no Mercado Livre.", status: itemResponse.status || 404 };
-    if (String(itemResponse.data?.seller_id || "") !== String(sellerId)) {
-      return { error: "O anúncio não pertence ao seller conectado.", status: 403 };
-    }
+    if (String(itemResponse.data?.seller_id || "") !== String(sellerId)) return { error: "O anúncio não pertence ao seller conectado.", status: 403 };
 
-    const saved = await upsertItemMessageRule(env, {
-      sellerId,
-      itemId,
-      itemTitle: itemResponse.data?.title || body.title || "",
-      message,
-      productLink,
-      enabled
+    const previous = (await getItemMessageRules(env, sellerId, [itemId]))[0] || null;
+    const saved = await upsertItemMessageRule(env, { sellerId, itemId, itemTitle: itemResponse.data?.title || body.title || "", message, productLink, enabled });
+    const action = auditAction(previous, enabled);
+    await appendAuditEvent(env, {
+      actorId: "admin",
+      action,
+      entityType: "listing",
+      entityId: itemId,
+      metadata: { seller_id: String(sellerId), title: String(saved.item_title || ""), changed: changedFields(previous, { message, productLink, enabled }), enabled }
     });
-    return {
-      ok: true,
-      rule: {
-        item_id: String(saved.item_id),
-        title: String(saved.item_title || ""),
-        message: String(saved.message || ""),
-        product_link: String(saved.product_link || ""),
-        enabled: Number(saved.enabled || 0) === 1,
-        updated_at: Number(saved.updated_at || 0)
-      }
-    };
-  }
 
+    return { ok: true, rule: { item_id: String(saved.item_id), title: String(saved.item_title || ""), message: String(saved.message || ""), product_link: String(saved.product_link || ""), enabled: Number(saved.enabled || 0) === 1, updated_at: Number(saved.updated_at || 0) } };
+  }
   return { error: "Método não permitido.", status: 405 };
 }
