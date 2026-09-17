@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { buildMessageFromRules, greetingForDate, resolveBuyerDisplayName } from "../cloudflare/src/automation.mjs";
 import { normalizeOrder } from "../cloudflare/src/mercadolivre.mjs";
 
@@ -61,4 +62,23 @@ test("each listing resolves its own product and delivery link without global fal
   assert.match(result.text, /Produto A:\nProduto A => https:\/\/a\.example/);
   assert.match(result.text, /Produto B:\nProduto B => https:\/\/b\.example/);
   assert.doesNotMatch(result.text, /Produto B:\nProduto B => https:\/\/a\.example/);
+});
+
+test("product delivery link is persisted per listing and exposed by the message rules API", () => {
+  const migration = fs.readFileSync("cloudflare/migrations/0003_item_product_link.sql", "utf8");
+  const repository = fs.readFileSync("cloudflare/src/repository.mjs", "utf8");
+  const api = fs.readFileSync("cloudflare/src/message-rules.mjs", "utf8");
+  assert.match(migration, /ADD COLUMN product_link/i);
+  assert.match(repository, /product_link/);
+  assert.match(api, /product_link/);
+});
+
+test("admin post-sale editor exposes delivery link and supported template variables", () => {
+  const ui = fs.readFileSync("admin-post-sale-templates.js", "utf8");
+  assert.match(ui, /Link de entrega do produto/);
+  assert.match(ui, /\{\{cliente\}\}/);
+  assert.match(ui, /\{\{saudacao\}\}/);
+  assert.match(ui, /\{\{produto\}\}/);
+  assert.match(ui, /\{\{pedido\}\}/);
+  assert.match(ui, /\{\{link_produto\}\}/);
 });
