@@ -6,6 +6,7 @@ const worker = fs.readFileSync('cloudflare/src/index.mjs','utf8');
 const orders = fs.readFileSync('cloudflare/src/orders.mjs','utf8');
 const promotions = fs.readFileSync('cloudflare/src/promotions.mjs','utf8');
 const ui = fs.readFileSync('admin-operations.js','utf8');
+const promoUi = fs.readFileSync('admin-promotions-clarity.js','utf8');
 const assets = fs.readFileSync('.assetsignore','utf8');
 
 test('worker exposes admin-only orders and promotions routes', () => {
@@ -41,6 +42,19 @@ test('mobile operations UI avoids browser-native confirmation dialogs', () => {
   assert.match(ui, /PRICE_DISCOUNT/);
 });
 
-test('operations asset is included in Cloudflare static assets', () => {
+test('promotions UI separates active campaigns from available opportunities', () => {
+  assert.match(promoUi, /Promoções ativas/);
+  assert.match(promoUi, /Oportunidades disponíveis/);
+  assert.match(promoUi, /Campanha do vendedor/);
+  assert.match(promoUi, /Desconto individual/);
+  assert.match(promoUi, /Cupom do vendedor/);
+  assert.match(promoUi, /promotionTypeLabel/);
+  assert.match(promoUi, /promotionPriceMarkup/);
+  assert.match(promoUi, /getElementById\('newDiscount'\)\?\.remove\(\)/);
+  assert.match(promoUi, /Sem preço definido/);
+});
+
+test('operations assets are included in Cloudflare static assets', () => {
   assert.match(assets, /!admin-operations\.js/);
+  assert.match(assets, /!admin-promotions-clarity\.js/);
 });
