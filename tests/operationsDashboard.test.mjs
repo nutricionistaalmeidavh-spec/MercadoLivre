@@ -41,6 +41,17 @@ test('mobile operations UI avoids browser-native confirmation dialogs', () => {
   assert.match(ui, /PRICE_DISCOUNT/);
 });
 
+test('promotions UI separates active campaigns from available opportunities', () => {
+  assert.match(ui, /Promoções ativas/);
+  assert.match(ui, /Oportunidades disponíveis/);
+  assert.match(ui, /Campanha do vendedor/);
+  assert.match(ui, /Desconto individual/);
+  assert.match(ui, /Cupom do vendedor/);
+  assert.match(ui, /promotionTypeLabel/);
+  assert.match(ui, /promotionPriceMarkup/);
+  assert.doesNotMatch(ui, /id="newDiscount"/);
+});
+
 test('operations asset is included in Cloudflare static assets', () => {
   assert.match(assets, /!admin-operations\.js/);
 });
