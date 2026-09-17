@@ -1,0 +1,38 @@
+{
+  "id": "mercado-livre-post-sale-readonly",
+  "productionMutation": false,
+  "autoGoto": false,
+  "steps": [
+    {
+      "action": "goto",
+      "name": "Abrir painel",
+      "path": "/admin",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "expectText",
+      "name": "Painel ArtiSys",
+      "text": "ARTISYS",
+      "expected": "ARTISYS"
+    },
+    {
+      "action": "screenshot",
+      "name": "painel-inicial",
+      "fullPage": false
+    }
+  ],
+  "scenarios": [
+    { "id": "buyer-name", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Usa primeiro nome do comprador quando disponível." },
+    { "id": "buyer-nickname-fallback", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Usa nickname quando first_name não estiver disponível." },
+    { "id": "buyer-generic-fallback", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Usa cliente quando nome e nickname não estiverem disponíveis." },
+    { "id": "greeting-morning", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Resolve bom dia em America/Sao_Paulo." },
+    { "id": "greeting-afternoon", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Resolve boa tarde em America/Sao_Paulo." },
+    { "id": "greeting-night", "kind": "unit", "source": "tests/postSaleTemplates.test.mjs", "description": "Resolve boa noite em America/Sao_Paulo." },
+    { "id": "valid-link", "kind": "unit", "source": "tests/postSaleP3P6.test.mjs", "description": "Aceita link HTTPS direto configurado por anúncio." },
+    { "id": "invalid-link", "kind": "unit", "source": "tests/postSaleP3P6.test.mjs", "description": "Bloqueia link HTTP, inválido e encurtadores conhecidos." },
+    { "id": "message-too-long", "kind": "unit", "source": "tests/postSaleP3P6.test.mjs", "description": "Bloqueia mensagem final acima do limite antes do envio." },
+    { "id": "policy-blocked", "kind": "integration", "source": "tests/cloudflareFlow.test.mjs", "description": "Respeita action_guide e caps_available." },
+    { "id": "dry-run", "kind": "integration", "source": "tests/postSaleP3P6.test.mjs", "description": "Registra a tentativa sem enviar em produção." },
+    { "id": "moderated", "kind": "integration", "source": "tests/postSaleP3P6.test.mjs", "description": "Moderação explícita fica sem retry automático." }
+  ]
+}
