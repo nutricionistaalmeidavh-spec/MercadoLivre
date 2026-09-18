@@ -4,6 +4,7 @@ import { listSiteCatalogDecisions, upsertSiteCatalogDecision } from "./site-cata
 
 const SITE_VISIBILITIES = new Set(["hidden", "individual", "collection", "external", "digital"]);
 const PRICE_MODES = new Set(["marketplace", "contact", "hidden"]);
+const LIVE_COLLECTIONS = new Set(["agro"]);
 
 function cleanSlug(value) {
   return String(value || "")
@@ -24,7 +25,8 @@ export function normalizeCatalogDecision(input = {}) {
   const siteSlug = cleanSlug(input.site_slug || input.siteSlug);
   const requestedPriceMode = String(input.price_mode || input.priceMode || "marketplace").trim().toLowerCase();
   const priceMode = PRICE_MODES.has(requestedPriceMode) ? requestedPriceMode : "marketplace";
-  const classifiable = siteVisibility !== "hidden" && (siteVisibility !== "collection" || Boolean(collectionSlug));
+  const collectionAllowed = siteVisibility !== "collection" || (Boolean(collectionSlug) && LIVE_COLLECTIONS.has(collectionSlug));
+  const classifiable = siteVisibility !== "hidden" && collectionAllowed;
   return {
     itemId,
     approved: Boolean(input.approved) && classifiable,
