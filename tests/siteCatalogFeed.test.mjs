@@ -76,6 +76,25 @@ test("normalização não permite publicação implícita nem classificação de
   });
 });
 
+test("coleção ainda não publicada no site não pode ser aprovada", () => {
+  assert.deepEqual(normalizeCatalogDecision({
+    item_id: "MLB200",
+    approved: true,
+    site_visibility: "collection",
+    collection_slug: "negocios",
+    site_name: "Sistema de Negócios"
+  }), {
+    itemId: "MLB200",
+    approved: false,
+    siteVisibility: "collection",
+    collectionSlug: "negocios",
+    siteName: "Sistema de Negócios",
+    siteSlug: "",
+    featured: false,
+    priceMode: "marketplace"
+  });
+});
+
 test("fotos públicas usam somente URL HTTPS", () => {
   assert.deepEqual(productPictures({
     thumbnail: "https://http2.mlstatic.com/thumb.jpg",
