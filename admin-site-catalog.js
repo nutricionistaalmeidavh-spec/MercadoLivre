@@ -46,6 +46,9 @@
     feedback.textContent = 'Salvando…';
     feedback.className = 'meta';
     try {
+      if (refs.visibility.value === 'individual' && !refs.slug.value.trim()) {
+        refs.slug.value = slugify(refs.name.value || item.title || item.item_id);
+      }
       const response = await fetch('/api/site-catalog/admin', {
         method: 'POST',
         credentials: 'same-origin',
@@ -133,9 +136,7 @@
     ], decision.site_visibility || 'hidden');
     const collection = select([
       ['', 'Sem coleção'],
-      ['agro', 'Agro'],
-      ['negocios', 'Negócios'],
-      ['saude', 'Saúde']
+      ['agro', 'Agro']
     ], decision.collection_slug || '');
     const priceMode = select([
       ['marketplace', 'Usar preço do Mercado Livre'],
