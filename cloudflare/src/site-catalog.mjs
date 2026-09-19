@@ -146,6 +146,7 @@ export function buildPublicCatalogFeed(listings = [], decisions = []) {
 function decisionForAdmin(listing, stored) {
   const normalized = normalizeCatalogDecision(stored || {});
   return {
+    configured: Boolean(stored),
     approved: normalized.approved,
     site_visibility: normalized.siteVisibility,
     collection_slug: normalized.collectionSlug,
@@ -166,6 +167,7 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
     const byItem = new Map(decisions.map((decision) => [String(decision.item_id), decision]));
     return {
       seller_id: String(sellerId),
+      generated_at: new Date().toISOString(),
       items: items.map((item) => ({
         ...item,
         pictures: productPictures(item),
