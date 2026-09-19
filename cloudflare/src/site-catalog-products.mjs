@@ -11,6 +11,25 @@ function cleanSlug(value) {
     .slice(0, 100);
 }
 
+function collectionForProduct(product, collections = []) {
+  const allowed = new Map((collections || []).map((collection) => [cleanSlug(collection?.slug), collection]).filter(([slug]) => slug));
+  for (const slug of product?.collections || []) {
+    const clean = cleanSlug(slug);
+    if (allowed.has(clean)) return clean;
+  }
+  const category = String(product?.category || "").trim();
+  const categorySlug = cleanSlug(category);
+  for (const [slug, collection] of allowed) {
+    const categories = [
+      ...(Array.isArray(collection?.categories) ? collection.categories : []),
+      collection?.category,
+      collection?.name
+    ].map((value) => String(value || "").trim()).filter(Boolean);
+    if (slug === categorySlug || categories.some((value) => value === category || cleanSlug(value) === categorySlug)) return slug;
+  }
+  return "";
+}
+
 export function normalizeCanonicalProducts(payload) {
   const source = Array.isArray(payload) ? payload : Array.isArray(payload?.products) ? payload.products : [];
   const seen = new Set();
@@ -32,6 +51,33 @@ export function normalizeCanonicalProducts(payload) {
     });
   }
   return products.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+export function linkGroupToCanonicalProduct(group = {}, linkedProductSlug, products = [], collections = []) {
+  const slug = cleanSlug(linkedProductSlug);
+  if (!slug) {
+    return {
+      ...group,
+      site_visibility: "hidden",
+      collection_slug: "",
+      site_slug: "",
+      approved: false
+    };
+  }
+  const product = normalizeCanonicalProducts(products).find((entry) => entry.slug === slug);
+  if (!product) {
+    const error = new Error("Página ArtiSys selecionada não existe no catálogo publicado.");
+    error.code = "UNKNOWN_ARTISYS_PRODUCT";
+    throw error;
+  }
+  const mode = ["individual", "collection", "external", "digital"].includes(product.pageMode) ? product.pageMode : "individual";
+  return {
+    ...group,
+    site_name: product.name,
+    site_slug: product.slug,
+    site_visibility: mode,
+    collection_slug: collectionForProduct(product, collections)
+  };
 }
 
 export async function fetchCanonicalProducts(env = {}, fetchImpl = fetch) {
