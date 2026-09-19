@@ -1,6 +1,11 @@
 import { mlRequest } from "./mercadolivre.mjs";
 import { getValidToken } from "./token-service.mjs";
 import {
+  canonicalCollectionSlugs,
+  fetchCanonicalCollections
+} from "./site-catalog-collections.mjs";
+export { normalizeCanonicalCollections } from "./site-catalog-collections.mjs";
+import {
   createSiteCatalogGroup,
   deleteSiteCatalogGroup,
   getSiteCatalogGroup,
@@ -14,7 +19,7 @@ import {
 
 const SITE_VISIBILITIES = new Set(["hidden", "individual", "collection", "external", "digital"]);
 const PRICE_MODES = new Set(["marketplace", "contact", "hidden"]);
-const LIVE_COLLECTIONS = new Set(["agro"]);
+const FALLBACK_LIVE_COLLECTIONS = new Set(["agro"]);
 
 function cleanSlug(value) {
   return String(value || "")
@@ -35,7 +40,7 @@ function uniqueStrings(values) {
   return [...new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
-export function normalizeCatalogDecision(input = {}) {
+export function normalizeCatalogDecision(input = {}, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
   const itemId = String(input.item_id || input.itemId || "").trim();
   const requestedVisibility = String(input.site_visibility || input.siteVisibility || "hidden").trim().toLowerCase();
   const siteVisibility = SITE_VISIBILITIES.has(requestedVisibility) ? requestedVisibility : "hidden";
@@ -45,7 +50,8 @@ export function normalizeCatalogDecision(input = {}) {
   const requestedPriceMode = String(input.price_mode || input.priceMode || "marketplace").trim().toLowerCase();
   const priceMode = PRICE_MODES.has(requestedPriceMode) ? requestedPriceMode : "marketplace";
   const heroPictureUrl = cleanHttpsUrl(input.hero_picture_url || input.heroPictureUrl);
-  const collectionAllowed = siteVisibility !== "collection" || (Boolean(collectionSlug) && LIVE_COLLECTIONS.has(collectionSlug));
+  const allowedCollections = liveCollections instanceof Set ? liveCollections : canonicalCollectionSlugs(liveCollections);
+  const collectionAllowed = siteVisibility !== "collection" || (Boolean(collectionSlug) && allowedCollections.has(collectionSlug));
   const classifiable = siteVisibility !== "hidden" && collectionAllowed;
   return {
     itemId,
@@ -60,11 +66,11 @@ export function normalizeCatalogDecision(input = {}) {
   };
 }
 
-function normalizeCatalogGroup(input = {}) {
+function normalizeCatalogGroup(input = {}, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
   const normalized = normalizeCatalogDecision({
     ...input,
     item_id: input.primary_item_id || input.primaryItemId || input.group_id || input.groupId || "group"
-  });
+  }, liveCollections);
   return {
     groupId: String(input.group_id || input.groupId || "").trim(),
     primaryItemId: String(input.primary_item_id || input.primaryItemId || "").trim(),
@@ -150,9 +156,9 @@ export async function fetchSellerCatalogListings(env, sellerId) {
   return items.filter((item) => item.item_id);
 }
 
-function buildIndividualProduct(listing, rawDecision) {
+function buildIndividualProduct(listing, rawDecision, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
   if (!rawDecision) return null;
-  const decision = normalizeCatalogDecision(rawDecision);
+  const decision = normalizeCatalogDecision(rawDecision, liveCollections);
   if (!decision.approved || decision.siteVisibility === "hidden") return null;
   if (decision.siteVisibility === "individual" && !decision.siteSlug) return null;
   if (decision.siteVisibility === "collection" && !decision.collectionSlug) return null;
@@ -176,8 +182,8 @@ function buildIndividualProduct(listing, rawDecision) {
   };
 }
 
-function buildGroupedProduct(rawGroup, memberIds, listingById) {
-  const group = normalizeCatalogGroup(rawGroup);
+function buildGroupedProduct(rawGroup, memberIds, listingById, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
+  const group = normalizeCatalogGroup(rawGroup, liveCollections);
   if (!group.groupId || !group.approved || group.siteVisibility === "hidden") return null;
   if (group.siteVisibility === "individual" && !group.siteSlug) return null;
   if (group.siteVisibility === "collection" && !group.collectionSlug) return null;
@@ -210,7 +216,7 @@ function buildGroupedProduct(rawGroup, memberIds, listingById) {
   };
 }
 
-export function buildPublicCatalogFeed(listings = [], decisions = [], groups = [], groupItems = []) {
+export function buildPublicCatalogFeed(listings = [], decisions = [], groups = [], groupItems = [], liveCollections = FALLBACK_LIVE_COLLECTIONS) {
   const decisionByItem = new Map(decisions.map((decision) => [String(decision.item_id || decision.itemId || ""), decision]));
   const listingById = new Map(listings.map((listing) => [String(listing.item_id || ""), listing]));
   const memberIdsByGroup = new Map();
@@ -227,21 +233,21 @@ export function buildPublicCatalogFeed(listings = [], decisions = [], groups = [
   const output = [];
   for (const rawGroup of groups) {
     const groupId = String(rawGroup.group_id || rawGroup.groupId || "").trim();
-    const grouped = buildGroupedProduct(rawGroup, uniqueStrings(memberIdsByGroup.get(groupId) || []), listingById);
+    const grouped = buildGroupedProduct(rawGroup, uniqueStrings(memberIdsByGroup.get(groupId) || []), listingById, liveCollections);
     if (grouped) output.push(grouped);
   }
 
   for (const listing of listings) {
     const itemId = String(listing.item_id || "");
     if (groupedItemIds.has(itemId)) continue;
-    const individual = buildIndividualProduct(listing, decisionByItem.get(itemId));
+    const individual = buildIndividualProduct(listing, decisionByItem.get(itemId), liveCollections);
     if (individual) output.push(individual);
   }
   return output;
 }
 
-function decisionForAdmin(listing, stored) {
-  const normalized = normalizeCatalogDecision(stored || {});
+function decisionForAdmin(listing, stored, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
+  const normalized = normalizeCatalogDecision(stored || {}, liveCollections);
   return {
     configured: Boolean(stored),
     approved: normalized.approved,
@@ -255,8 +261,8 @@ function decisionForAdmin(listing, stored) {
   };
 }
 
-function groupForAdmin(group, itemIds, listingById) {
-  const normalized = normalizeCatalogGroup(group);
+function groupForAdmin(group, itemIds, listingById, liveCollections = FALLBACK_LIVE_COLLECTIONS) {
+  const normalized = normalizeCatalogGroup(group, liveCollections);
   const activeListings = itemIds.map((itemId) => listingById.get(itemId)).filter(Boolean);
   const pictures = groupPictures(activeListings, normalized.heroPictureUrl);
   return {
@@ -287,8 +293,8 @@ function validateGroupListings(listings, itemIds, primaryItemId) {
   return "";
 }
 
-async function saveIndividualDecision(env, sellerId, body) {
-  const decision = normalizeCatalogDecision(body);
+async function saveIndividualDecision(env, sellerId, body, liveCollections) {
+  const decision = normalizeCatalogDecision(body, liveCollections);
   if (!decision.itemId) return { error: "item_id obrigatório.", status: 400 };
   if (body.approved && !decision.approved) return { error: "Classificação incompleta ou inválida para publicação.", status: 400 };
 
@@ -319,7 +325,7 @@ async function saveIndividualDecision(env, sellerId, body) {
   };
 }
 
-async function createGroup(env, sellerId, body) {
+async function createGroup(env, sellerId, body, liveCollections) {
   const listings = await fetchSellerCatalogListings(env, sellerId);
   const itemIds = uniqueStrings(body.item_ids);
   const primaryItemId = String(body.primary_item_id || itemIds[0] || "").trim();
@@ -346,10 +352,10 @@ async function createGroup(env, sellerId, body) {
     await deleteSiteCatalogGroup(env, sellerId, group.groupId);
     return { error: error.message || "Falha ao agrupar anúncios.", status: 409 };
   }
-  return { ok: true, group: groupForAdmin(await getSiteCatalogGroup(env, sellerId, group.groupId), itemIds, listingById) };
+  return { ok: true, group: groupForAdmin(await getSiteCatalogGroup(env, sellerId, group.groupId), itemIds, listingById, liveCollections) };
 }
 
-async function saveGroup(env, sellerId, body) {
+async function saveGroup(env, sellerId, body, liveCollections) {
   const groupId = String(body.group_id || "").trim();
   if (!groupId) return { error: "group_id obrigatório.", status: 400 };
   const existing = await getSiteCatalogGroup(env, sellerId, groupId);
@@ -360,7 +366,7 @@ async function saveGroup(env, sellerId, body) {
   const primaryItemId = String(body.primary_item_id || "").trim();
   const validationError = validateGroupListings(listings, itemIds, primaryItemId);
   if (validationError) return { error: validationError, status: 400 };
-  const normalized = normalizeCatalogGroup({ ...body, group_id: groupId, primary_item_id: primaryItemId });
+  const normalized = normalizeCatalogGroup({ ...body, group_id: groupId, primary_item_id: primaryItemId }, liveCollections);
   if (body.approved && !normalized.approved) return { error: "Classificação incompleta ou inválida para publicação.", status: 400 };
 
   const listingById = new Map(listings.map((listing) => [String(listing.item_id), listing]));
@@ -375,10 +381,13 @@ async function saveGroup(env, sellerId, body) {
     return { error: error.message || "Falha ao atualizar anúncios do grupo.", status: 409 };
   }
   const saved = await updateSiteCatalogGroup(env, sellerId, normalized);
-  return { ok: true, group: groupForAdmin(saved, itemIds, listingById) };
+  return { ok: true, group: groupForAdmin(saved, itemIds, listingById, liveCollections) };
 }
 
 export async function handleSiteCatalogAdminApi(env, request, sellerId) {
+  const canonical = await fetchCanonicalCollections(env);
+  const liveCollections = canonicalCollectionSlugs(canonical.collections);
+
   if (request.method === "GET") {
     const [items, decisions, groups, groupItems] = await Promise.all([
       fetchSellerCatalogListings(env, sellerId),
@@ -398,12 +407,15 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
     return {
       seller_id: String(sellerId),
       generated_at: new Date().toISOString(),
-      groups: groups.map((group) => groupForAdmin(group, itemIdsByGroup.get(String(group.group_id)) || [], listingById)),
+      collections: canonical.collections,
+      collections_source: canonical.source,
+      collections_warning: canonical.warning || "",
+      groups: groups.map((group) => groupForAdmin(group, itemIdsByGroup.get(String(group.group_id)) || [], listingById, liveCollections)),
       items: items.map((item) => ({
         ...item,
         group_id: groupByItem.get(String(item.item_id)) || "",
         pictures: productPictures(item),
-        decision: decisionForAdmin(item, byItem.get(item.item_id))
+        decision: decisionForAdmin(item, byItem.get(item.item_id), liveCollections)
       }))
     };
   }
@@ -411,9 +423,9 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || "save_item").trim().toLowerCase();
-    if (action === "save_item") return saveIndividualDecision(env, sellerId, body);
-    if (action === "create_group") return createGroup(env, sellerId, body);
-    if (action === "save_group") return saveGroup(env, sellerId, body);
+    if (action === "save_item") return saveIndividualDecision(env, sellerId, body, liveCollections);
+    if (action === "create_group") return createGroup(env, sellerId, body, liveCollections);
+    if (action === "save_group") return saveGroup(env, sellerId, body, liveCollections);
     if (action === "delete_group") {
       const groupId = String(body.group_id || "").trim();
       if (!groupId) return { error: "group_id obrigatório.", status: 400 };
@@ -428,16 +440,19 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
 
 export async function handleSiteCatalogFeedApi(env, request, sellerId) {
   if (request.method !== "GET") return { error: "Método não permitido.", status: 405 };
-  const [items, decisions, groups, groupItems] = await Promise.all([
+  const [canonical, items, decisions, groups, groupItems] = await Promise.all([
+    fetchCanonicalCollections(env),
     fetchSellerCatalogListings(env, sellerId),
     listSiteCatalogDecisions(env, sellerId),
     listSiteCatalogGroups(env, sellerId),
     listSiteCatalogGroupItems(env, sellerId)
   ]);
+  const liveCollections = canonicalCollectionSlugs(canonical.collections);
   return {
-    version: 2,
+    version: 3,
     seller_id: String(sellerId),
     generated_at: new Date().toISOString(),
-    items: buildPublicCatalogFeed(items, decisions, groups, groupItems)
+    collections: canonical.collections,
+    items: buildPublicCatalogFeed(items, decisions, groups, groupItems, liveCollections)
   };
 }
