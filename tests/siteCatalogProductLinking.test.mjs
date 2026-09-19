@@ -40,3 +40,11 @@ test('painel oferece seletor Página ArtiSys vinculada e publica o asset', () =>
   assert.match(assetsIgnore, /!admin-site-catalog-linking\.js/);
   assert.match(packageJson, /admin-site-catalog-linking\.js/);
 });
+
+test('vínculo aparece dentro de cada card de produto agrupado', () => {
+  assert.match(linkingAdminSource, /artisys-link-row/);
+  assert.match(linkingAdminSource, /MutationObserver/);
+  assert.match(linkingAdminSource, /Salvar vínculo/);
+  assert.match(linkingAdminSource, /\.controls/);
+  assert.doesNotMatch(linkingAdminSource, /Grupo do Mercado Livre/);
+});
