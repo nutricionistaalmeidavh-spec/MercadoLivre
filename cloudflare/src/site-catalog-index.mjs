@@ -2,6 +2,9 @@ import baseWorker from "./index.mjs";
 import { decryptJson } from "./crypto.mjs";
 import { listSellers } from "./repository.mjs";
 import { handleSiteCatalogAdminApi, handleSiteCatalogFeedApi } from "./site-catalog.mjs";
+import { fetchCanonicalCollections } from "./site-catalog-collections.mjs";
+import { fetchCanonicalProducts, linkGroupToCanonicalProduct } from "./site-catalog-products.mjs";
+import { getSiteCatalogGroup, updateSiteCatalogGroup } from "./site-catalog-repository.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -64,6 +67,75 @@ async function handleAdminApi(request, env) {
   return json(result);
 }
 
+function groupUpdatePayload(group, linked) {
+  return {
+    groupId: String(group.group_id || ""),
+    primaryItemId: String(group.primary_item_id || ""),
+    approved: Boolean(linked.approved),
+    siteVisibility: String(linked.site_visibility || "hidden"),
+    collectionSlug: String(linked.collection_slug || ""),
+    siteName: String(linked.site_name || group.site_name || ""),
+    siteSlug: String(linked.site_slug || ""),
+    featured: Boolean(group.featured),
+    priceMode: String(group.price_mode || "marketplace"),
+    heroPictureUrl: String(group.hero_picture_url || "")
+  };
+}
+
+async function handleCatalogLinkingApi(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const sellerId = await resolveSellerId(env);
+  const [canonicalProducts, canonicalCollections] = await Promise.all([
+    fetchCanonicalProducts(env),
+    fetchCanonicalCollections(env)
+  ]);
+
+  if (request.method === "GET") {
+    const catalog = await handleSiteCatalogAdminApi(env, request, sellerId);
+    if (catalog?.error) return json({ error: catalog.error }, catalog.status || 400);
+    const productSlugs = new Set(canonicalProducts.products.map((product) => product.slug));
+    return json({
+      seller_id: String(sellerId),
+      products: canonicalProducts.products,
+      products_source: canonicalProducts.source,
+      products_warning: canonicalProducts.warning || "",
+      groups: (catalog.groups || []).map((group) => ({
+        ...group,
+        linked_product_slug: productSlugs.has(String(group.site_slug || "")) ? String(group.site_slug) : ""
+      }))
+    });
+  }
+
+  if (request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const groupId = String(body.group_id || "").trim();
+    const linkedProductSlug = String(body.linked_product_slug || "").trim();
+    if (!groupId) return json({ error: "group_id obrigatório." }, 400);
+    const group = await getSiteCatalogGroup(env, sellerId, groupId);
+    if (!group) return json({ error: "Grupo não encontrado." }, 404);
+    let linked;
+    try {
+      linked = linkGroupToCanonicalProduct(group, linkedProductSlug, canonicalProducts.products, canonicalCollections.collections);
+    } catch (error) {
+      return json({ error: error.message || "Página ArtiSys inválida." }, 400);
+    }
+    const saved = await updateSiteCatalogGroup(env, sellerId, groupUpdatePayload(group, linked));
+    return json({
+      ok: true,
+      group_id: groupId,
+      linked_product_slug: linkedProductSlug,
+      site_name: String(saved?.site_name || ""),
+      site_slug: String(saved?.site_slug || ""),
+      site_visibility: String(saved?.site_visibility || "hidden"),
+      collection_slug: String(saved?.collection_slug || ""),
+      approved: Number(saved?.approved || 0) === 1
+    });
+  }
+
+  return json({ error: "Método não permitido." }, 405);
+}
+
 async function handlePublicFeed(request, env) {
   if (request.method === "OPTIONS") {
     return new Response(null, {
@@ -102,6 +174,7 @@ export default {
       if (url.pathname === "/admin" || url.pathname === "/admin/" || url.pathname === "/admin.html") return await serveAdminWithCatalogLink(request, env, ctx);
       if (url.pathname === "/site-catalog" || url.pathname === "/site-catalog/") return await serveSiteCatalogAdmin(request, env);
       if (url.pathname === "/api/site-catalog/admin") return await handleAdminApi(request, env);
+      if (url.pathname === "/api/site-catalog/linking") return await handleCatalogLinkingApi(request, env);
       if (url.pathname === "/api/site-catalog/feed") return await handlePublicFeed(request, env);
       return baseWorker.fetch(request, env, ctx);
     } catch (error) {
