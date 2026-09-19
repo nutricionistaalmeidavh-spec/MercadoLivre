@@ -17,6 +17,9 @@
   let generatedAt = '';
   let collectionsSource = 'fallback';
   let collectionsWarning = '';
+  let canonicalProducts = [];
+  let productsSource = 'unavailable';
+  let productsWarning = '';
   let selectedIds = new Set();
 
   function money(value, currency = 'BRL') {
@@ -344,6 +347,18 @@
     return data;
   }
 
+async function postLinking(groupId, linkedProductSlug) {
+  const response = await fetch('/api/site-catalog/linking', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ group_id: groupId, linked_product_slug: linkedProductSlug })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
   async function saveItem(item, controls, heroPicture, button) {
     button.disabled = true;
     controls.feedback.textContent = 'Salvando…';
@@ -588,9 +603,64 @@
     const controls = classificationControls(group);
     const form = document.createElement('div');
     form.className = 'controls';
-    appendClassificationForm(form, controls);
+    const linkedProductSlug = String(group.linked_product_slug || '');
+  const productSelect = select([
+    ['', 'Sem página vinculada'],
+    ...canonicalProducts.map((product) => [
+      String(product.slug || ''),
+      `${product.name || product.slug}${product.category ? ` · ${product.category}` : ''}`
+    ])
+  ], linkedProductSlug);
+  const linkButton = document.createElement('button');
+  linkButton.type = 'button';
+  linkButton.className = 'button secondary';
+  linkButton.textContent = 'Salvar vínculo';
+  linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+  productSelect.disabled = linkButton.disabled;
+  const linkFeedback = document.createElement('span');
+  linkFeedback.className = 'meta';
+  if (productsSource === 'unavailable') {
+    linkFeedback.textContent = productsWarning || 'Não foi possível carregar as páginas ArtiSys.';
+    linkFeedback.className = 'meta error';
+  } else if (linkedProductSlug) {
+    const currentProduct = canonicalProducts.find((product) => String(product.slug || '') === linkedProductSlug);
+    linkFeedback.textContent = currentProduct ? `Página atual: ${currentProduct.name}.` : 'Página vinculada.';
+  } else {
+    linkFeedback.textContent = 'Selecione manualmente a página ArtiSys representada por este grupo.';
+  }
+  const linkRow = document.createElement('div');
+  linkRow.className = 'row two artisys-link-row';
+  linkRow.append(field('Página ArtiSys vinculada', productSelect), linkButton);
+  linkButton.addEventListener('click', async () => {
+    linkButton.disabled = true;
+    productSelect.disabled = true;
+    linkFeedback.textContent = 'Salvando vínculo…';
+    linkFeedback.className = 'meta';
+    try {
+      const linked = await postLinking(group.group_id, productSelect.value);
+      group.linked_product_slug = String(linked.linked_product_slug || '');
+      if (linked.site_name !== undefined) controls.name.value = String(linked.site_name || '');
+      if (linked.site_slug !== undefined) controls.slug.value = String(linked.site_slug || '');
+      if (linked.site_visibility) controls.visibility.value = String(linked.site_visibility);
+      controls.collection.value = String(linked.collection_slug || '');
+      controls.approved.input.checked = Boolean(linked.approved);
+      linkFeedback.textContent = productSelect.value
+        ? `Vinculado a ${linked.site_name || productSelect.selectedOptions[0]?.textContent || productSelect.value}.`
+        : 'Vínculo removido.';
+      linkFeedback.className = 'meta ok';
+      await load();
+    } catch (error) {
+      linkFeedback.textContent = error.message || 'Falha ao salvar vínculo.';
+      linkFeedback.className = 'meta error';
+      linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+      productSelect.disabled = linkButton.disabled;
+    }
+  });
 
-    const actions = document.createElement('div');
+  form.append(linkRow, linkFeedback);
+  appendClassificationForm(form, controls);
+
+  const actions = document.createElement('div');
     actions.className = 'actions';
     const saveButton = document.createElement('button');
     saveButton.type = 'button';
@@ -706,9 +776,34 @@
       collectionsSource = data.collections_source || 'fallback';
       collectionsWarning = data.collections_warning || '';
       catalogItems = Array.isArray(data.items) ? data.items : [];
-      catalogGroups = Array.isArray(data.groups) ? data.groups : [];
-      generatedAt = data.generated_at || new Date().toISOString();
-      render();
+  catalogGroups = Array.isArray(data.groups) ? data.groups : [];
+  generatedAt = data.generated_at || new Date().toISOString();
+
+  try {
+    const linkingResponse = await fetch('/api/site-catalog/linking', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    const linkingData = await linkingResponse.json().catch(() => ({}));
+    if (!linkingResponse.ok) throw new Error(linkingData.error || `HTTP ${linkingResponse.status}`);
+    canonicalProducts = Array.isArray(linkingData.products) ? linkingData.products : [];
+    productsSource = linkingData.products_source || 'unavailable';
+    productsWarning = linkingData.products_warning || '';
+    const linkedByGroup = new Map((Array.isArray(linkingData.groups) ? linkingData.groups : []).map((entry) => [
+      String(entry.group_id || ''),
+      String(entry.linked_product_slug || '')
+    ]));
+    catalogGroups = catalogGroups.map((group) => ({
+      ...group,
+      linked_product_slug: linkedByGroup.get(String(group.group_id || '')) || ''
+    }));
+  } catch (linkError) {
+    canonicalProducts = [];
+    productsSource = 'unavailable';
+    productsWarning = linkError.message || 'Falha ao carregar páginas ArtiSys.';
+  }
+
+  render();
     } catch (error) {
       catalogItems = [];
       catalogGroups = [];
