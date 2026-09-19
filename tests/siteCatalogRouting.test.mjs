@@ -93,3 +93,8 @@ test("A.1 painel é compacto, recolhível e permite agrupamento manual", () => {
   assert.match(adminScript, /Possível duplicidade/i);
   assert.match(adminScript, /createElement\(['"]details['"]\)/i);
 });
+
+test("A.1 desagrupamento falha fechado e remove aprovação individual antiga", () => {
+  assert.match(repository, /UPDATE site_catalog_decisions[\s\S]*SET approved=0/);
+  assert.match(repository, /removedIds/);
+});
