@@ -50,6 +50,7 @@
   function editorialState(item) {
     const decision = item.decision || {};
     if (decision.approved) return { key: 'approved', label: 'Aprovado', className: 'live' };
+    if (decision.configured === false) return { key: 'pending', label: 'Pendente', className: '' };
     if ((decision.site_visibility || 'hidden') === 'hidden') return { key: 'hidden', label: 'Oculto', className: 'hidden' };
     if (decision.site_visibility === 'collection' && decision.collection_slug && !LIVE_COLLECTIONS.has(decision.collection_slug)) {
       return { key: 'awaiting', label: 'Aguardando coleção', className: 'wait' };
