@@ -63,7 +63,8 @@ test("bloco A persiste capa e oferece busca filtros ordenação e coleções edi
 
 test("anúncio novo fica pendente até existir decisão editorial explícita", () => {
   assert.match(catalogSource, /configured:\s*Boolean\(stored\)/);
-  assert.match(adminScript, /decision\.configured\s*===\s*false/);
+  assert.match(adminScript, /configured\s*!==\s*false/);
+  assert.match(adminScript, /if\s*\(!configured\)\s*return\s*\{\s*key:\s*['"]pending['"]/);
 });
 
 test("A.1 cria grupos canônicos com vínculo único por anúncio e CRUD seller-scoped", () => {
@@ -86,9 +87,9 @@ test("A.1 painel é compacto, recolhível e permite agrupamento manual", () => {
   assert.match(adminPage, /Agrupados/i);
   assert.match(adminPage, /Não agrupados/i);
   assert.match(adminScript, /group_id/);
-  assert.match(adminScript, /Agrupar selecionados/i);
+  assert.match(adminScript, /groupSelectedButton/);
   assert.match(adminScript, /Anúncio principal/i);
   assert.match(adminScript, /Desagrupar produto/i);
   assert.match(adminScript, /Possível duplicidade/i);
-  assert.match(adminScript, /details/i);
+  assert.match(adminScript, /createElement\(['"]details['"]\)/i);
 });
