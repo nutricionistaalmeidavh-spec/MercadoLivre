@@ -3,8 +3,10 @@ import fs from "node:fs";
 import test from "node:test";
 
 const wrapper = fs.readFileSync("cloudflare/src/site-catalog-index.mjs", "utf8");
+const catalogSource = fs.readFileSync("cloudflare/src/site-catalog.mjs", "utf8");
 const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
 const migration = fs.readFileSync("cloudflare/migrations/0006_site_catalog_decisions.sql", "utf8");
+const repository = fs.readFileSync("cloudflare/src/site-catalog-repository.mjs", "utf8");
 const assetsIgnore = fs.readFileSync(".assetsignore", "utf8");
 const adminPage = fs.readFileSync("admin-site-catalog.html", "utf8");
 const adminScript = fs.readFileSync("admin-site-catalog.js", "utf8");
@@ -41,4 +43,25 @@ test("admin assets expose explicit approval controls and are shipped by Cloudfla
   assert.match(adminScript, /Página individual/);
   assert.match(adminScript, /Página de coleção/);
   assert.match(adminScript, /Produto digital/);
+});
+
+test("bloco A persiste capa e oferece busca filtros ordenação e coleções editoriais", () => {
+  const migrationV7Path = "cloudflare/migrations/0007_site_catalog_cover.sql";
+  assert.equal(fs.existsSync(migrationV7Path), true, "migration 0007 precisa existir");
+  const migrationV7 = fs.readFileSync(migrationV7Path, "utf8");
+  assert.match(migrationV7, /hero_picture_url\s+TEXT/i);
+  assert.match(repository, /hero_picture_url/);
+  assert.match(adminPage, /id="catalog-search"/);
+  assert.match(adminPage, /id="catalog-filter"/);
+  assert.match(adminPage, /id="catalog-sort"/);
+  assert.match(adminScript, /Negócios/);
+  assert.match(adminScript, /Saúde/);
+  assert.match(adminScript, /Aguardando coleção/);
+  assert.match(adminScript, /hero_picture_url/);
+  assert.match(adminScript, /Escolher como capa|Capa escolhida/);
+});
+
+test("anúncio novo fica pendente até existir decisão editorial explícita", () => {
+  assert.match(catalogSource, /configured:\s*Boolean\(stored\)/);
+  assert.match(adminScript, /decision\.configured\s*===\s*false/);
 });

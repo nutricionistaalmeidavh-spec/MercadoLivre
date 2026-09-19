@@ -16,6 +16,11 @@ function cleanSlug(value) {
     .slice(0, 100);
 }
 
+function cleanHttpsUrl(value) {
+  const url = String(value || "").trim();
+  return url.startsWith("https://") ? url : "";
+}
+
 export function normalizeCatalogDecision(input = {}) {
   const itemId = String(input.item_id || input.itemId || "").trim();
   const requestedVisibility = String(input.site_visibility || input.siteVisibility || "hidden").trim().toLowerCase();
@@ -25,6 +30,7 @@ export function normalizeCatalogDecision(input = {}) {
   const siteSlug = cleanSlug(input.site_slug || input.siteSlug);
   const requestedPriceMode = String(input.price_mode || input.priceMode || "marketplace").trim().toLowerCase();
   const priceMode = PRICE_MODES.has(requestedPriceMode) ? requestedPriceMode : "marketplace";
+  const heroPictureUrl = cleanHttpsUrl(input.hero_picture_url || input.heroPictureUrl);
   const collectionAllowed = siteVisibility !== "collection" || (Boolean(collectionSlug) && LIVE_COLLECTIONS.has(collectionSlug));
   const classifiable = siteVisibility !== "hidden" && collectionAllowed;
   return {
@@ -35,7 +41,8 @@ export function normalizeCatalogDecision(input = {}) {
     siteName,
     siteSlug,
     featured: Boolean(input.featured),
-    priceMode
+    priceMode,
+    heroPictureUrl
   };
 }
 
@@ -44,6 +51,12 @@ export function productPictures(listing = {}) {
     ? listing.pictures.map((picture) => picture?.secure_url || picture?.url)
     : [listing.thumbnail];
   return [...new Set(candidates.map((value) => String(value || "").trim()).filter((value) => value.startsWith("https://")))].slice(0, 12);
+}
+
+function orderedPictures(listing, heroPictureUrl) {
+  const pictures = productPictures(listing);
+  if (!heroPictureUrl || !pictures.includes(heroPictureUrl)) return pictures;
+  return [heroPictureUrl, ...pictures.filter((picture) => picture !== heroPictureUrl)];
 }
 
 function chunk(values, size) {
@@ -110,6 +123,7 @@ export function buildPublicCatalogFeed(listings = [], decisions = []) {
     if (decision.siteVisibility === "collection" && !decision.collectionSlug) continue;
     const name = decision.siteName || String(listing.title || "").trim();
     const slug = decision.siteSlug || cleanSlug(name) || String(listing.item_id || "").toLowerCase();
+    const pictures = orderedPictures(listing, decision.heroPictureUrl);
     output.push({
       item_id: String(listing.item_id || ""),
       name,
@@ -122,7 +136,8 @@ export function buildPublicCatalogFeed(listings = [], decisions = []) {
       currency: String(listing.currency_id || "BRL"),
       permalink: String(listing.permalink || ""),
       soldQuantity: Number.isFinite(Number(listing.sold_quantity)) ? Number(listing.sold_quantity) : 0,
-      pictures: productPictures(listing)
+      ...(decision.heroPictureUrl && pictures[0] === decision.heroPictureUrl ? { heroPicture: decision.heroPictureUrl } : {}),
+      pictures
     });
   }
   return output;
@@ -131,13 +146,15 @@ export function buildPublicCatalogFeed(listings = [], decisions = []) {
 function decisionForAdmin(listing, stored) {
   const normalized = normalizeCatalogDecision(stored || {});
   return {
+    configured: Boolean(stored),
     approved: normalized.approved,
     site_visibility: normalized.siteVisibility,
     collection_slug: normalized.collectionSlug,
     site_name: normalized.siteName || listing.title,
     site_slug: normalized.siteSlug,
     featured: normalized.featured,
-    price_mode: normalized.priceMode
+    price_mode: normalized.priceMode,
+    hero_picture_url: normalized.heroPictureUrl
   };
 }
 
@@ -150,6 +167,7 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
     const byItem = new Map(decisions.map((decision) => [String(decision.item_id), decision]));
     return {
       seller_id: String(sellerId),
+      generated_at: new Date().toISOString(),
       items: items.map((item) => ({
         ...item,
         pictures: productPictures(item),
@@ -168,6 +186,10 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
     const itemResponse = await mlRequest(`/items/${encodeURIComponent(decision.itemId)}`, token.access_token);
     if (!itemResponse.ok) return { error: "Anúncio não encontrado no Mercado Livre.", status: itemResponse.status || 404 };
     if (String(itemResponse.data?.seller_id || "") !== String(sellerId)) return { error: "O anúncio não pertence ao seller conectado.", status: 403 };
+    const availablePictures = productPictures(itemResponse.data || {});
+    if (decision.heroPictureUrl && !availablePictures.includes(decision.heroPictureUrl)) {
+      return { error: "A foto de capa precisa pertencer ao anúncio atual.", status: 400 };
+    }
 
     const saved = await upsertSiteCatalogDecision(env, sellerId, decision);
     return {
@@ -181,6 +203,7 @@ export async function handleSiteCatalogAdminApi(env, request, sellerId) {
         site_slug: String(saved.site_slug || ""),
         featured: Number(saved.featured || 0) === 1,
         price_mode: String(saved.price_mode || "marketplace"),
+        hero_picture_url: String(saved.hero_picture_url || ""),
         updated_at: Number(saved.updated_at || 0)
       }
     };

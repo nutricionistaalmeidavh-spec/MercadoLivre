@@ -72,7 +72,8 @@ test("normalização não permite publicação implícita nem classificação de
     siteName: "",
     siteSlug: "",
     featured: false,
-    priceMode: "marketplace"
+    priceMode: "marketplace",
+    heroPictureUrl: ""
   });
 });
 
@@ -91,7 +92,8 @@ test("coleção ainda não publicada no site não pode ser aprovada", () => {
     siteName: "Sistema de Negócios",
     siteSlug: "",
     featured: false,
-    priceMode: "marketplace"
+    priceMode: "marketplace",
+    heroPictureUrl: ""
   });
 });
 
@@ -104,4 +106,46 @@ test("fotos públicas usam somente URL HTTPS", () => {
       { url: "https://http2.mlstatic.com/3.jpg" }
     ]
   }), ["https://http2.mlstatic.com/1.jpg", "https://http2.mlstatic.com/3.jpg"]);
+});
+
+test("capa escolhida precisa ser HTTPS e aparece primeiro no feed público", () => {
+  const listing = {
+    item_id: "MLB300",
+    title: "PDV ArtiSys",
+    price: 189,
+    currency_id: "BRL",
+    permalink: "https://produto/300",
+    pictures: [
+      { secure_url: "https://http2.mlstatic.com/1.jpg" },
+      { secure_url: "https://http2.mlstatic.com/2.jpg" },
+      { secure_url: "https://http2.mlstatic.com/3.jpg" }
+    ]
+  };
+  const normalized = normalizeCatalogDecision({
+    item_id: "MLB300",
+    approved: true,
+    site_visibility: "individual",
+    site_slug: "pdv-artisys",
+    hero_picture_url: "https://http2.mlstatic.com/2.jpg"
+  });
+  assert.equal(normalized.heroPictureUrl, "https://http2.mlstatic.com/2.jpg");
+
+  const [product] = buildPublicCatalogFeed([listing], [{
+    item_id: "MLB300",
+    approved: 1,
+    site_visibility: "individual",
+    site_slug: "pdv-artisys",
+    hero_picture_url: "https://http2.mlstatic.com/2.jpg"
+  }]);
+  assert.equal(product.heroPicture, "https://http2.mlstatic.com/2.jpg");
+  assert.deepEqual(product.pictures, [
+    "https://http2.mlstatic.com/2.jpg",
+    "https://http2.mlstatic.com/1.jpg",
+    "https://http2.mlstatic.com/3.jpg"
+  ]);
+
+  assert.equal(normalizeCatalogDecision({
+    item_id: "MLB301",
+    hero_picture_url: "http://inseguro/capa.jpg"
+  }).heroPictureUrl, "");
 });
