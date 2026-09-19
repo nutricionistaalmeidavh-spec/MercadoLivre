@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const productsModule = await import('../cloudflare/src/site-catalog-products.mjs');
-const siteCatalogSource = fs.readFileSync('cloudflare/src/site-catalog.mjs', 'utf8');
-const adminSource = fs.readFileSync('admin-site-catalog.js', 'utf8');
+const wrapperSource = fs.readFileSync('cloudflare/src/site-catalog-index.mjs', 'utf8');
+const linkingAdminSource = fs.readFileSync('admin-site-catalog-linking.js', 'utf8');
+const assetsIgnore = fs.readFileSync('.assetsignore', 'utf8');
+const packageJson = fs.readFileSync('package.json', 'utf8');
 
 test('grupo pode ser vinculado manualmente a uma página canônica como NutriDesk', () => {
   assert.equal(typeof productsModule.linkGroupToCanonicalProduct, 'function');
@@ -24,14 +26,17 @@ test('grupo pode ser vinculado manualmente a uma página canônica como NutriDes
   assert.equal(linked.collection_slug, 'saude');
 });
 
-test('API administrativa expõe produtos canônicos e aceita linked_product_slug no grupo', () => {
-  assert.match(siteCatalogSource, /fetchCanonicalProducts/);
-  assert.match(siteCatalogSource, /products:\s*canonicalProducts\.products/);
-  assert.match(siteCatalogSource, /linked_product_slug/);
+test('API administrativa expõe páginas canônicas e aceita linked_product_slug por grupo', () => {
+  assert.match(wrapperSource, /fetchCanonicalProducts/);
+  assert.match(wrapperSource, /\/api\/site-catalog\/linking/);
+  assert.match(wrapperSource, /linked_product_slug/);
+  assert.match(wrapperSource, /updateSiteCatalogGroup/);
 });
 
-test('painel oferece seletor Página ArtiSys vinculada para grupos', () => {
-  assert.match(adminSource, /Página ArtiSys vinculada/);
-  assert.match(adminSource, /canonicalProducts/);
-  assert.match(adminSource, /linked_product_slug/);
+test('painel oferece seletor Página ArtiSys vinculada e publica o asset', () => {
+  assert.match(linkingAdminSource, /Página ArtiSys vinculada/);
+  assert.match(linkingAdminSource, /linked_product_slug/);
+  assert.match(linkingAdminSource, /\/api\/site-catalog\/linking/);
+  assert.match(assetsIgnore, /!admin-site-catalog-linking\.js/);
+  assert.match(packageJson, /admin-site-catalog-linking\.js/);
 });
