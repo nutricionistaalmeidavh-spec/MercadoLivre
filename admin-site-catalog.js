@@ -10,11 +10,13 @@
   const groupName = document.getElementById('catalog-group-name');
   const groupSelectedButton = document.getElementById('catalog-group-selected');
   const clearSelectionButton = document.getElementById('catalog-clear-selection');
-  const LIVE_COLLECTIONS = new Set(['agro']);
+  let liveCollections = new Map([['agro', 'Agro']]);
   const TITLE_STOPWORDS = new Set(['sistema', 'software', 'artisys', 'completo', 'completa', 'para', 'com', 'de', 'do', 'da', 'dos', 'das', 'e']);
   let catalogItems = [];
   let catalogGroups = [];
   let generatedAt = '';
+  let collectionsSource = 'fallback';
+  let collectionsWarning = '';
   let selectedIds = new Set();
 
   function money(value, currency = 'BRL') {
@@ -60,7 +62,7 @@
     if (decision.approved) return { key: 'approved', label: 'Aprovado', className: 'live' };
     if (!configured) return { key: 'pending', label: 'Pendente', className: '' };
     if ((decision.site_visibility || 'hidden') === 'hidden') return { key: 'hidden', label: 'Oculto', className: 'hidden' };
-    if (decision.site_visibility === 'collection' && decision.collection_slug && !LIVE_COLLECTIONS.has(decision.collection_slug)) {
+    if (decision.site_visibility === 'collection' && decision.collection_slug && !liveCollections.has(decision.collection_slug)) {
       return { key: 'awaiting', label: 'Aguardando coleção', className: 'wait' };
     }
     return { key: 'pending', label: 'Pendente', className: '' };
@@ -193,14 +195,17 @@
       `${entries.length} produtos`,
       `${catalogGroups.length} agrupados`,
       `${ungroupedItems().length} anúncios não agrupados`,
-      `${approved} aprovados`
+      `${approved} aprovados`,
+      `${liveCollections.size} coleções publicadas`
     ];
     if (renderedCount !== entries.length) parts.push(`${renderedCount} exibidos`);
     if (generatedAt) {
       const date = new Date(generatedAt);
       if (!Number.isNaN(date.getTime())) parts.push(`sincronizado ${date.toLocaleString('pt-BR')}`);
     }
+    if (collectionsSource === 'fallback') parts.push('coleções em fallback');
     status.textContent = parts.join(' · ');
+    status.title = collectionsWarning || '';
   }
 
   function summaryThumb(src, label) {
@@ -287,9 +292,7 @@
     ], source.site_visibility || 'hidden');
     const collection = select([
       ['', 'Sem coleção'],
-      ['agro', 'Agro'],
-      ['negocios', 'Negócios'],
-      ['saude', 'Saúde']
+      ...[...liveCollections.entries()].map(([slugValue, label]) => [slugValue, label])
     ], source.collection_slug || '');
     const priceMode = select([
       ['marketplace', 'Usar preço do Mercado Livre'],
@@ -301,7 +304,7 @@
     const feedback = document.createElement('span');
     feedback.className = 'meta';
     const syncApprovalAvailability = () => {
-      const waiting = visibility.value === 'collection' && collection.value && !LIVE_COLLECTIONS.has(collection.value);
+      const waiting = visibility.value === 'collection' && collection.value && !liveCollections.has(collection.value);
       approved.input.disabled = waiting;
       if (waiting) {
         approved.input.checked = false;
@@ -697,6 +700,11 @@
       const response = await fetch('/api/site-catalog/admin', { credentials: 'same-origin' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      if (Array.isArray(data.collections) && data.collections.length) {
+        liveCollections = new Map(data.collections.map((collection) => [String(collection.slug || ''), String(collection.name || collection.category || collection.slug || '')]).filter(([slug]) => slug));
+      }
+      collectionsSource = data.collections_source || 'fallback';
+      collectionsWarning = data.collections_warning || '';
       catalogItems = Array.isArray(data.items) ? data.items : [];
       catalogGroups = Array.isArray(data.groups) ? data.groups : [];
       generatedAt = data.generated_at || new Date().toISOString();
