@@ -42,7 +42,7 @@ export function normalizeCatalogDecision(input = {}) {
     siteSlug,
     featured: Boolean(input.featured),
     priceMode,
-    ...(heroPictureUrl ? { heroPictureUrl } : {})
+    heroPictureUrl
   };
 }
 
@@ -123,7 +123,7 @@ export function buildPublicCatalogFeed(listings = [], decisions = []) {
     if (decision.siteVisibility === "collection" && !decision.collectionSlug) continue;
     const name = decision.siteName || String(listing.title || "").trim();
     const slug = decision.siteSlug || cleanSlug(name) || String(listing.item_id || "").toLowerCase();
-    const pictures = orderedPictures(listing, decision.heroPictureUrl || "");
+    const pictures = orderedPictures(listing, decision.heroPictureUrl);
     output.push({
       item_id: String(listing.item_id || ""),
       name,
@@ -153,7 +153,7 @@ function decisionForAdmin(listing, stored) {
     site_slug: normalized.siteSlug,
     featured: normalized.featured,
     price_mode: normalized.priceMode,
-    hero_picture_url: normalized.heroPictureUrl || ""
+    hero_picture_url: normalized.heroPictureUrl
   };
 }
 
