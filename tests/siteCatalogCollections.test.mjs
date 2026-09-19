@@ -5,6 +5,7 @@ import {
   normalizeCanonicalCollections,
   normalizeCatalogDecision
 } from '../cloudflare/src/site-catalog.mjs';
+import { fetchCanonicalCollections } from '../cloudflare/src/site-catalog-collections.mjs';
 
 test('descobre coleções publicadas a partir da fonte canônica ArtiSys', () => {
   const collections = normalizeCanonicalCollections({
@@ -15,6 +16,22 @@ test('descobre coleções publicadas a partir da fonte canônica ArtiSys', () =>
     ]
   });
   assert.deepEqual(collections.map((item) => item.slug), ['agro', 'negocios', 'saude']);
+});
+
+test('consulta a fonte canônica configurável e devolve as coleções publicadas', async () => {
+  const calls = [];
+  const result = await fetchCanonicalCollections({ ARTISYS_COLLECTIONS_URL: 'https://example.test/collections.json' }, async (url) => {
+    calls.push(url);
+    return {
+      ok: true,
+      async json() {
+        return { collections: [{ slug: 'agro' }, { slug: 'negocios' }, { slug: 'saude' }] };
+      }
+    };
+  });
+  assert.deepEqual(calls, ['https://example.test/collections.json']);
+  assert.equal(result.source, 'canonical');
+  assert.deepEqual(result.collections.map((item) => item.slug), ['agro', 'negocios', 'saude']);
 });
 
 test('aprovação de coleção usa a lista descoberta e não um allowlist fixo', () => {
