@@ -72,7 +72,8 @@ test("normalização não permite publicação implícita nem classificação de
     siteName: "",
     siteSlug: "",
     featured: false,
-    priceMode: "marketplace"
+    priceMode: "marketplace",
+    heroPictureUrl: ""
   });
 });
 
@@ -91,7 +92,8 @@ test("coleção ainda não publicada no site não pode ser aprovada", () => {
     siteName: "Sistema de Negócios",
     siteSlug: "",
     featured: false,
-    priceMode: "marketplace"
+    priceMode: "marketplace",
+    heroPictureUrl: ""
   });
 });
 
