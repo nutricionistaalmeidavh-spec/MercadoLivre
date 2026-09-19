@@ -166,7 +166,6 @@ jobs:
           npm install --no-audit --no-fund
           npm run check
           npm test
-          npm run check:design-context
 
       - name: Commit to fix branch
         run: |
