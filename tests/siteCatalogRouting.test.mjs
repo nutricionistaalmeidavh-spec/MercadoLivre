@@ -4,6 +4,7 @@ import test from "node:test";
 
 const wrapper = fs.readFileSync("cloudflare/src/site-catalog-index.mjs", "utf8");
 const catalogSource = fs.readFileSync("cloudflare/src/site-catalog.mjs", "utf8");
+const collectionSource = fs.readFileSync("cloudflare/src/site-catalog-collections.mjs", "utf8");
 const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
 const migration = fs.readFileSync("cloudflare/migrations/0006_site_catalog_decisions.sql", "utf8");
 const repository = fs.readFileSync("cloudflare/src/site-catalog-repository.mjs", "utf8");
@@ -54,8 +55,11 @@ test("bloco A persiste capa e oferece busca filtros ordenação e coleções edi
   assert.match(adminPage, /id="catalog-search"/);
   assert.match(adminPage, /id="catalog-filter"/);
   assert.match(adminPage, /id="catalog-sort"/);
-  assert.match(adminScript, /Negócios/);
-  assert.match(adminScript, /Saúde/);
+  assert.match(collectionSource, /artisys\.dev\/sistemas\/collections\.json/);
+  assert.match(catalogSource, /fetchCanonicalCollections/);
+  assert.match(catalogSource, /collections:\s*canonical\.collections/);
+  assert.match(adminScript, /data\.collections/);
+  assert.match(adminScript, /liveCollections\.entries\(\)/);
   assert.match(adminScript, /Aguardando coleção/);
   assert.match(adminScript, /hero_picture_url/);
   assert.match(adminScript, /Escolher como capa|Capa escolhida/);
