@@ -33,6 +33,7 @@ test('vínculo é renderizado nativamente no formulário de cada produto agrupad
   assert.match(adminSource, /linkedProductSlug/);
   assert.match(adminSource, /\/api\/site-catalog\/linking/);
   assert.match(adminSource, /renderGroupCard/);
+  assert.match(adminSource, /artisys-link-row/);
   assert.match(adminSource, /Salvar vínculo/);
   assert.doesNotMatch(adminSource, /MutationObserver/);
   assert.doesNotMatch(adminHtml, /admin-site-catalog-linking\.js/);
