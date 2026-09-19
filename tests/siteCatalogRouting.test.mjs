@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 const wrapper = fs.readFileSync("cloudflare/src/site-catalog-index.mjs", "utf8");
+const catalogSource = fs.readFileSync("cloudflare/src/site-catalog.mjs", "utf8");
 const wrangler = fs.readFileSync("cloudflare/wrangler.jsonc", "utf8");
 const migration = fs.readFileSync("cloudflare/migrations/0006_site_catalog_decisions.sql", "utf8");
 const repository = fs.readFileSync("cloudflare/src/site-catalog-repository.mjs", "utf8");
@@ -58,4 +59,9 @@ test("bloco A persiste capa e oferece busca filtros ordenação e coleções edi
   assert.match(adminScript, /Aguardando coleção/);
   assert.match(adminScript, /hero_picture_url/);
   assert.match(adminScript, /Escolher como capa|Capa escolhida/);
+});
+
+test("anúncio novo fica pendente até existir decisão editorial explícita", () => {
+  assert.match(catalogSource, /configured:\s*Boolean\(stored\)/);
+  assert.match(adminScript, /decision\.configured\s*===\s*false/);
 });
