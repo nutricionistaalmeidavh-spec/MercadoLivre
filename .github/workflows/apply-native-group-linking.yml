@@ -1,0 +1,207 @@
+name: Apply native group linking refactor
+
+on:
+  push:
+    branches:
+      - fix/native-group-page-linking
+    paths:
+      - .github/workflows/apply-native-group-linking.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/native-group-page-linking
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apply native integration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('admin-site-catalog.js')
+          source = path.read_text(encoding='utf-8')
+
+          old = """  let collectionsWarning = '';
+  let selectedIds = new Set();
+"""
+          new = """  let collectionsWarning = '';
+  let canonicalProducts = [];
+  let productsSource = 'unavailable';
+  let productsWarning = '';
+  let selectedIds = new Set();
+"""
+          assert old in source, 'state anchor not found'
+          source = source.replace(old, new, 1)
+
+          old = """  async function postCatalog(payload) {
+    const response = await fetch('/api/site-catalog/admin', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+  }
+"""
+          new = old + """
+
+  async function postLinking(groupId, linkedProductSlug) {
+    const response = await fetch('/api/site-catalog/linking', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ group_id: groupId, linked_product_slug: linkedProductSlug })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+  }
+"""
+          assert old in source, 'postCatalog anchor not found'
+          source = source.replace(old, new, 1)
+
+          old = """    const controls = classificationControls(group);
+    const form = document.createElement('div');
+    form.className = 'controls';
+    appendClassificationForm(form, controls);
+
+    const actions = document.createElement('div');
+"""
+          new = """    const controls = classificationControls(group);
+    const form = document.createElement('div');
+    form.className = 'controls';
+
+    const linkedProductSlug = String(group.linked_product_slug || '');
+    const productSelect = select([
+      ['', 'Sem página vinculada'],
+      ...canonicalProducts.map((product) => [
+        String(product.slug || ''),
+        `${product.name || product.slug}${product.category ? ` · ${product.category}` : ''}`
+      ])
+    ], linkedProductSlug);
+    const linkButton = document.createElement('button');
+    linkButton.type = 'button';
+    linkButton.className = 'button secondary';
+    linkButton.textContent = 'Salvar vínculo';
+    linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+    productSelect.disabled = linkButton.disabled;
+    const linkFeedback = document.createElement('span');
+    linkFeedback.className = 'meta';
+    if (productsSource === 'unavailable') {
+      linkFeedback.textContent = productsWarning || 'Não foi possível carregar as páginas ArtiSys.';
+      linkFeedback.className = 'meta error';
+    } else if (linkedProductSlug) {
+      const currentProduct = canonicalProducts.find((product) => String(product.slug || '') === linkedProductSlug);
+      linkFeedback.textContent = currentProduct ? `Página atual: ${currentProduct.name}.` : 'Página vinculada.';
+    } else {
+      linkFeedback.textContent = 'Selecione manualmente a página ArtiSys representada por este grupo.';
+    }
+    const linkRow = document.createElement('div');
+    linkRow.className = 'row two artisys-link-row';
+    linkRow.append(field('Página ArtiSys vinculada', productSelect), linkButton);
+    linkButton.addEventListener('click', async () => {
+      linkButton.disabled = true;
+      productSelect.disabled = true;
+      linkFeedback.textContent = 'Salvando vínculo…';
+      linkFeedback.className = 'meta';
+      try {
+        const linked = await postLinking(group.group_id, productSelect.value);
+        group.linked_product_slug = String(linked.linked_product_slug || '');
+        if (linked.site_name !== undefined) controls.name.value = String(linked.site_name || '');
+        if (linked.site_slug !== undefined) controls.slug.value = String(linked.site_slug || '');
+        if (linked.site_visibility) controls.visibility.value = String(linked.site_visibility);
+        controls.collection.value = String(linked.collection_slug || '');
+        controls.approved.input.checked = Boolean(linked.approved);
+        linkFeedback.textContent = productSelect.value
+          ? `Vinculado a ${linked.site_name || productSelect.selectedOptions[0]?.textContent || productSelect.value}.`
+          : 'Vínculo removido.';
+        linkFeedback.className = 'meta ok';
+        await load();
+      } catch (error) {
+        linkFeedback.textContent = error.message || 'Falha ao salvar vínculo.';
+        linkFeedback.className = 'meta error';
+        linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+        productSelect.disabled = linkButton.disabled;
+      }
+    });
+
+    form.append(linkRow, linkFeedback);
+    appendClassificationForm(form, controls);
+
+    const actions = document.createElement('div');
+"""
+          assert old in source, 'renderGroupCard anchor not found'
+          source = source.replace(old, new, 1)
+
+          old = """      catalogItems = Array.isArray(data.items) ? data.items : [];
+      catalogGroups = Array.isArray(data.groups) ? data.groups : [];
+      generatedAt = data.generated_at || new Date().toISOString();
+      render();
+"""
+          new = """      catalogItems = Array.isArray(data.items) ? data.items : [];
+      catalogGroups = Array.isArray(data.groups) ? data.groups : [];
+      generatedAt = data.generated_at || new Date().toISOString();
+
+      try {
+        const linkingResponse = await fetch('/api/site-catalog/linking', {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        const linkingData = await linkingResponse.json().catch(() => ({}));
+        if (!linkingResponse.ok) throw new Error(linkingData.error || `HTTP ${linkingResponse.status}`);
+        canonicalProducts = Array.isArray(linkingData.products) ? linkingData.products : [];
+        productsSource = linkingData.products_source || 'unavailable';
+        productsWarning = linkingData.products_warning || '';
+        const linkedByGroup = new Map((Array.isArray(linkingData.groups) ? linkingData.groups : []).map((entry) => [
+          String(entry.group_id || ''),
+          String(entry.linked_product_slug || '')
+        ]));
+        catalogGroups = catalogGroups.map((group) => ({
+          ...group,
+          linked_product_slug: linkedByGroup.get(String(group.group_id || '')) || ''
+        }));
+      } catch (linkError) {
+        canonicalProducts = [];
+        productsSource = 'unavailable';
+        productsWarning = linkError.message || 'Falha ao carregar páginas ArtiSys.';
+      }
+
+      render();
+"""
+          assert old in source, 'load anchor not found'
+          source = source.replace(old, new, 1)
+          path.write_text(source, encoding='utf-8')
+
+          html_path = Path('admin-site-catalog.html')
+          html = html_path.read_text(encoding='utf-8')
+          helper_line = '  <script src="/admin-site-catalog-linking.js" defer></script>\n'
+          assert helper_line in html, 'helper script tag not found'
+          html_path.write_text(html.replace(helper_line, '', 1), encoding='utf-8')
+
+      - name: Verify patched source
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+          npm test
+          npm run check:design-context
+
+      - name: Commit native integration
+        run: |
+          git config user.name "ArtiSys CI"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/apply-native-group-linking.yml
+          git add admin-site-catalog.js admin-site-catalog.html
+          git commit -m "fix: renderizar vínculo ArtiSys nativamente no grupo"
+          git push origin HEAD:fix/native-group-page-linking
