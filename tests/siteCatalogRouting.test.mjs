@@ -65,3 +65,30 @@ test("anúncio novo fica pendente até existir decisão editorial explícita", (
   assert.match(catalogSource, /configured:\s*Boolean\(stored\)/);
   assert.match(adminScript, /decision\.configured\s*===\s*false/);
 });
+
+test("A.1 cria grupos canônicos com vínculo único por anúncio e CRUD seller-scoped", () => {
+  const migrationV8Path = "cloudflare/migrations/0008_site_catalog_groups.sql";
+  assert.equal(fs.existsSync(migrationV8Path), true, "migration 0008 precisa existir");
+  const migrationV8 = fs.readFileSync(migrationV8Path, "utf8");
+  assert.match(migrationV8, /CREATE TABLE IF NOT EXISTS site_catalog_groups/i);
+  assert.match(migrationV8, /CREATE TABLE IF NOT EXISTS site_catalog_group_items/i);
+  assert.match(migrationV8, /PRIMARY KEY\s*\(seller_id,\s*item_id\)/i);
+  assert.match(repository, /listSiteCatalogGroups/);
+  assert.match(repository, /replaceSiteCatalogGroupItems/);
+  assert.match(repository, /deleteSiteCatalogGroup/);
+  assert.match(catalogSource, /create_group/);
+  assert.match(catalogSource, /save_group/);
+  assert.match(catalogSource, /delete_group/);
+});
+
+test("A.1 painel é compacto, recolhível e permite agrupamento manual", () => {
+  assert.match(adminPage, /Agrupar selecionados/i);
+  assert.match(adminPage, /Agrupados/i);
+  assert.match(adminPage, /Não agrupados/i);
+  assert.match(adminScript, /group_id/);
+  assert.match(adminScript, /Agrupar selecionados/i);
+  assert.match(adminScript, /Anúncio principal/i);
+  assert.match(adminScript, /Desagrupar produto/i);
+  assert.match(adminScript, /Possível duplicidade/i);
+  assert.match(adminScript, /details/i);
+});
