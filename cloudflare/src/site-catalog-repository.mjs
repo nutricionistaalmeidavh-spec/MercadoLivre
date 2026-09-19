@@ -161,8 +161,21 @@ export async function replaceSiteCatalogGroupItems(env, sellerId, groupId, itemI
     }
   }
 
+  const previous = await env.DB.prepare(`
+    SELECT item_id FROM site_catalog_group_items
+    WHERE seller_id=? AND group_id=?
+  `).bind(normalizedSeller, normalizedGroup).all();
+  const removedIds = (previous.results || [])
+    .map((row) => String(row.item_id || ""))
+    .filter((itemId) => itemId && !uniqueIds.includes(itemId));
+
   const now = Date.now();
   const statements = [
+    ...removedIds.map((itemId) => env.DB.prepare(`
+      UPDATE site_catalog_decisions
+      SET approved=0, updated_at=?
+      WHERE seller_id=? AND item_id=?
+    `).bind(now, normalizedSeller, itemId)),
     env.DB.prepare(`DELETE FROM site_catalog_group_items WHERE seller_id=? AND group_id=?`).bind(normalizedSeller, normalizedGroup),
     ...uniqueIds.map((itemId) => env.DB.prepare(`
       INSERT INTO site_catalog_group_items (seller_id, item_id, group_id, created_at)
@@ -176,7 +189,17 @@ export async function replaceSiteCatalogGroupItems(env, sellerId, groupId, itemI
 export async function deleteSiteCatalogGroup(env, sellerId, groupId) {
   const normalizedSeller = String(sellerId);
   const normalizedGroup = String(groupId);
+  const members = await env.DB.prepare(`
+    SELECT item_id FROM site_catalog_group_items
+    WHERE seller_id=? AND group_id=?
+  `).bind(normalizedSeller, normalizedGroup).all();
+  const now = Date.now();
   await env.DB.batch([
+    ...(members.results || []).map((row) => env.DB.prepare(`
+      UPDATE site_catalog_decisions
+      SET approved=0, updated_at=?
+      WHERE seller_id=? AND item_id=?
+    `).bind(now, normalizedSeller, String(row.item_id || ""))),
     env.DB.prepare(`DELETE FROM site_catalog_group_items WHERE seller_id=? AND group_id=?`).bind(normalizedSeller, normalizedGroup),
     env.DB.prepare(`DELETE FROM site_catalog_groups WHERE seller_id=? AND group_id=?`).bind(normalizedSeller, normalizedGroup)
   ]);
