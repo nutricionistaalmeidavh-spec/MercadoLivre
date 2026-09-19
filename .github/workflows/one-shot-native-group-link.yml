@@ -25,41 +25,19 @@ jobs:
 
       - name: Patch source
         run: |
-          python - <<'PY'
+          cat > /tmp/apply_patch.py <<'PY'
           from pathlib import Path
+
           path = Path('admin-site-catalog.js')
           source = path.read_text(encoding='utf-8')
 
-          old = """  let collectionsWarning = '';
-            let selectedIds = new Set();
-          """
-          if old not in source:
-              old = """  let collectionsWarning = '';
-          let selectedIds = new Set();
-          """
-          new = """  let collectionsWarning = '';
-          let canonicalProducts = [];
-          let productsSource = 'unavailable';
-          let productsWarning = '';
-          let selectedIds = new Set();
-          """
-          assert old in source, 'state anchor not found'
-          source = source.replace(old, new, 1)
+          state_anchor = "  let collectionsWarning = '';\n  let selectedIds = new Set();"
+          state_replacement = "  let collectionsWarning = '';\n  let canonicalProducts = [];\n  let productsSource = 'unavailable';\n  let productsWarning = '';\n  let selectedIds = new Set();"
+          assert state_anchor in source, 'state anchor not found'
+          source = source.replace(state_anchor, state_replacement, 1)
 
-          old = """  async function postCatalog(payload) {
-            const response = await fetch('/api/site-catalog/admin', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-            return data;
-          }
-          """
-          new = old + """
-
+          save_item_anchor = "\n  async function saveItem(item, controls, heroPicture, button) {"
+          post_linking = r'''
           async function postLinking(groupId, linkedProductSlug) {
             const response = await fetch('/api/site-catalog/linking', {
               method: 'POST',
@@ -71,22 +49,15 @@ jobs:
             if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
             return data;
           }
-          """
-          assert old in source, 'postCatalog anchor not found'
-          source = source.replace(old, new, 1)
+          '''.strip('\n')
+          assert save_item_anchor in source, 'saveItem anchor not found'
+          source = source.replace(save_item_anchor, '\n' + post_linking + '\n' + save_item_anchor, 1)
 
-          old = """    const controls = classificationControls(group);
-            const form = document.createElement('div');
-            form.className = 'controls';
-            appendClassificationForm(form, controls);
-
-            const actions = document.createElement('div');
-          """
-          new = """    const controls = classificationControls(group);
-            const form = document.createElement('div');
-            form.className = 'controls';
-
-            const linkedProductSlug = String(group.linked_product_slug || '');
+          group_start = source.index("  function renderGroupCard(group) {")
+          group_end = source.index("\n  function render() {", group_start)
+          group_block = source[group_start:group_end]
+          group_anchor = "    appendClassificationForm(form, controls);\n\n    const actions = document.createElement('div');"
+          native_group_link = r'''    const linkedProductSlug = String(group.linked_product_slug || '');
             const productSelect = select([
               ['', 'Sem página vinculada'],
               ...canonicalProducts.map((product) => [
@@ -143,17 +114,13 @@ jobs:
             form.append(linkRow, linkFeedback);
             appendClassificationForm(form, controls);
 
-            const actions = document.createElement('div');
-          """
-          assert old in source, 'renderGroupCard anchor not found'
-          source = source.replace(old, new, 1)
+            const actions = document.createElement('div');'''
+          assert group_anchor in group_block, 'group form anchor not found'
+          group_block = group_block.replace(group_anchor, native_group_link, 1)
+          source = source[:group_start] + group_block + source[group_end:]
 
-          old = """      catalogItems = Array.isArray(data.items) ? data.items : [];
-            catalogGroups = Array.isArray(data.groups) ? data.groups : [];
-            generatedAt = data.generated_at || new Date().toISOString();
-            render();
-          """
-          new = """      catalogItems = Array.isArray(data.items) ? data.items : [];
+          load_anchor = "      catalogItems = Array.isArray(data.items) ? data.items : [];\n      catalogGroups = Array.isArray(data.groups) ? data.groups : [];\n      generatedAt = data.generated_at || new Date().toISOString();\n      render();"
+          load_replacement = r'''      catalogItems = Array.isArray(data.items) ? data.items : [];
             catalogGroups = Array.isArray(data.groups) ? data.groups : [];
             generatedAt = data.generated_at || new Date().toISOString();
 
@@ -181,10 +148,9 @@ jobs:
               productsWarning = linkError.message || 'Falha ao carregar páginas ArtiSys.';
             }
 
-            render();
-          """
-          assert old in source, 'load anchor not found'
-          source = source.replace(old, new, 1)
+            render();'''
+          assert load_anchor in source, 'load anchor not found'
+          source = source.replace(load_anchor, load_replacement, 1)
           path.write_text(source, encoding='utf-8')
 
           html_path = Path('admin-site-catalog.html')
@@ -193,6 +159,7 @@ jobs:
           assert helper_line in html, 'helper script tag not found'
           html_path.write_text(html.replace(helper_line, '', 1), encoding='utf-8')
           PY
+          python /tmp/apply_patch.py
 
       - name: Verify
         run: |
