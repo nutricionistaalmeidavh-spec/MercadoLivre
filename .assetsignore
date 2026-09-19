@@ -6,6 +6,8 @@
 !admin-post-sale-templates.js
 !admin-promotions-clarity.js
 !admin-system.html
+!admin-site-catalog.html
+!admin-site-catalog.js
 !catalog.json
 !catalog-novos.json
 !images/
