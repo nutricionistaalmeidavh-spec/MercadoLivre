@@ -331,7 +331,7 @@ async function createGroup(env, sellerId, body) {
     groupId: `grp_${crypto.randomUUID()}`,
     primaryItemId,
     approved: false,
-    siteVisibility: "hidden",
+    siteVisibility: "individual",
     collectionSlug: "",
     siteName,
     siteSlug: cleanSlug(siteName),
