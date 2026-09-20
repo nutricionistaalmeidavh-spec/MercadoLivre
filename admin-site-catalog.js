@@ -347,17 +347,75 @@
     return data;
   }
 
-async function postLinking(groupId, linkedProductSlug) {
+async function postLinking(target, linkedProductSlug) {
   const response = await fetch('/api/site-catalog/linking', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ group_id: groupId, linked_product_slug: linkedProductSlug })
+    body: JSON.stringify({ ...target, linked_product_slug: linkedProductSlug })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
   return data;
 }
+
+  function appendArtisysLinking(form, target, controls, linkedProductSlug, entry) {
+    const productSelect = select([
+      ['', 'Sem página vinculada'],
+      ...canonicalProducts.map((product) => [
+        String(product.slug || ''),
+        `${product.name || product.slug}${product.category ? ` · ${product.category}` : ''}`
+      ])
+    ], linkedProductSlug);
+    const linkButton = document.createElement('button');
+    linkButton.type = 'button';
+    linkButton.className = 'button secondary';
+    linkButton.textContent = 'Salvar vínculo';
+    linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+    productSelect.disabled = linkButton.disabled;
+    const linkFeedback = document.createElement('span');
+    linkFeedback.className = 'meta';
+    if (productsSource === 'unavailable') {
+      linkFeedback.textContent = productsWarning || 'Não foi possível carregar as páginas ArtiSys.';
+      linkFeedback.className = 'meta error';
+    } else if (linkedProductSlug) {
+      const currentProduct = canonicalProducts.find((product) => String(product.slug || '') === linkedProductSlug);
+      linkFeedback.textContent = currentProduct ? `Página atual: ${currentProduct.name}.` : 'Página vinculada.';
+    } else {
+      linkFeedback.textContent = target.group_id
+        ? 'Selecione manualmente a página ArtiSys representada por este grupo.'
+        : 'Selecione manualmente a página ArtiSys representada por este anúncio.';
+    }
+    const linkRow = document.createElement('div');
+    linkRow.className = 'row two artisys-link-row';
+    linkRow.append(field('Página ArtiSys vinculada', productSelect), linkButton);
+    linkButton.addEventListener('click', async () => {
+      linkButton.disabled = true;
+      productSelect.disabled = true;
+      linkFeedback.textContent = 'Salvando vínculo…';
+      linkFeedback.className = 'meta';
+      try {
+        const linked = await postLinking(target, productSelect.value);
+        entry.linked_product_slug = String(linked.linked_product_slug || '');
+        if (linked.site_name !== undefined) controls.name.value = String(linked.site_name || '');
+        if (linked.site_slug !== undefined) controls.slug.value = String(linked.site_slug || '');
+        if (linked.site_visibility) controls.visibility.value = String(linked.site_visibility);
+        controls.collection.value = String(linked.collection_slug || '');
+        controls.approved.input.checked = Boolean(linked.approved);
+        linkFeedback.textContent = productSelect.value
+          ? `Vinculado a ${linked.site_name || productSelect.selectedOptions[0]?.textContent || productSelect.value}.`
+          : 'Vínculo removido.';
+        linkFeedback.className = 'meta ok';
+        await load();
+      } catch (error) {
+        linkFeedback.textContent = error.message || 'Falha ao salvar vínculo.';
+        linkFeedback.className = 'meta error';
+        linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
+        productSelect.disabled = linkButton.disabled;
+      }
+    });
+    form.append(linkRow, linkFeedback);
+  }
 
   async function saveItem(item, controls, heroPicture, button) {
     button.disabled = true;
@@ -498,6 +556,7 @@ async function postLinking(groupId, linkedProductSlug) {
     });
     const form = document.createElement('div');
     form.className = 'controls';
+    appendArtisysLinking(form, { item_id: item.item_id }, controls, String(item.linked_product_slug || ''), item);
     appendClassificationForm(form, controls);
 
     if (catalogGroups.length) {
@@ -603,62 +662,8 @@ async function postLinking(groupId, linkedProductSlug) {
     const controls = classificationControls(group);
     const form = document.createElement('div');
     form.className = 'controls';
-    const linkedProductSlug = String(group.linked_product_slug || '');
-  const productSelect = select([
-    ['', 'Sem página vinculada'],
-    ...canonicalProducts.map((product) => [
-      String(product.slug || ''),
-      `${product.name || product.slug}${product.category ? ` · ${product.category}` : ''}`
-    ])
-  ], linkedProductSlug);
-  const linkButton = document.createElement('button');
-  linkButton.type = 'button';
-  linkButton.className = 'button secondary';
-  linkButton.textContent = 'Salvar vínculo';
-  linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
-  productSelect.disabled = linkButton.disabled;
-  const linkFeedback = document.createElement('span');
-  linkFeedback.className = 'meta';
-  if (productsSource === 'unavailable') {
-    linkFeedback.textContent = productsWarning || 'Não foi possível carregar as páginas ArtiSys.';
-    linkFeedback.className = 'meta error';
-  } else if (linkedProductSlug) {
-    const currentProduct = canonicalProducts.find((product) => String(product.slug || '') === linkedProductSlug);
-    linkFeedback.textContent = currentProduct ? `Página atual: ${currentProduct.name}.` : 'Página vinculada.';
-  } else {
-    linkFeedback.textContent = 'Selecione manualmente a página ArtiSys representada por este grupo.';
-  }
-  const linkRow = document.createElement('div');
-  linkRow.className = 'row two artisys-link-row';
-  linkRow.append(field('Página ArtiSys vinculada', productSelect), linkButton);
-  linkButton.addEventListener('click', async () => {
-    linkButton.disabled = true;
-    productSelect.disabled = true;
-    linkFeedback.textContent = 'Salvando vínculo…';
-    linkFeedback.className = 'meta';
-    try {
-      const linked = await postLinking(group.group_id, productSelect.value);
-      group.linked_product_slug = String(linked.linked_product_slug || '');
-      if (linked.site_name !== undefined) controls.name.value = String(linked.site_name || '');
-      if (linked.site_slug !== undefined) controls.slug.value = String(linked.site_slug || '');
-      if (linked.site_visibility) controls.visibility.value = String(linked.site_visibility);
-      controls.collection.value = String(linked.collection_slug || '');
-      controls.approved.input.checked = Boolean(linked.approved);
-      linkFeedback.textContent = productSelect.value
-        ? `Vinculado a ${linked.site_name || productSelect.selectedOptions[0]?.textContent || productSelect.value}.`
-        : 'Vínculo removido.';
-      linkFeedback.className = 'meta ok';
-      await load();
-    } catch (error) {
-      linkFeedback.textContent = error.message || 'Falha ao salvar vínculo.';
-      linkFeedback.className = 'meta error';
-      linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;
-      productSelect.disabled = linkButton.disabled;
-    }
-  });
-
-  form.append(linkRow, linkFeedback);
-  appendClassificationForm(form, controls);
+    appendArtisysLinking(form, { group_id: group.group_id }, controls, String(group.linked_product_slug || ''), group);
+    appendClassificationForm(form, controls);
 
   const actions = document.createElement('div');
     actions.className = 'actions';
@@ -796,6 +801,14 @@ async function postLinking(groupId, linkedProductSlug) {
     catalogGroups = catalogGroups.map((group) => ({
       ...group,
       linked_product_slug: linkedByGroup.get(String(group.group_id || '')) || ''
+    }));
+    const linkedByItem = new Map((Array.isArray(linkingData.items) ? linkingData.items : []).map((entry) => [
+      String(entry.item_id || ''),
+      String(entry.linked_product_slug || '')
+    ]));
+    catalogItems = catalogItems.map((item) => ({
+      ...item,
+      linked_product_slug: linkedByItem.get(String(item.item_id || '')) || ''
     }));
   } catch (linkError) {
     canonicalProducts = [];

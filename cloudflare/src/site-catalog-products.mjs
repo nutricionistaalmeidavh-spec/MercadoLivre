@@ -80,6 +80,10 @@ export function linkGroupToCanonicalProduct(group = {}, linkedProductSlug, produ
   };
 }
 
+export function linkDecisionToCanonicalProduct(decision = {}, linkedProductSlug, products = [], collections = []) {
+  return linkGroupToCanonicalProduct(decision, linkedProductSlug, products, collections);
+}
+
 export async function fetchCanonicalProducts(env = {}, fetchImpl = fetch) {
   const urls = [...new Set([
     String(env.ARTISYS_PRODUCTS_URL || "").trim(),
