@@ -3,8 +3,8 @@ import { decryptJson } from "./crypto.mjs";
 import { listSellers } from "./repository.mjs";
 import { handleSiteCatalogAdminApi, handleSiteCatalogFeedApi } from "./site-catalog.mjs";
 import { fetchCanonicalCollections } from "./site-catalog-collections.mjs";
-import { fetchCanonicalProducts, linkGroupToCanonicalProduct } from "./site-catalog-products.mjs";
-import { getSiteCatalogGroup, updateSiteCatalogGroup } from "./site-catalog-repository.mjs";
+import { fetchCanonicalProducts, linkDecisionToCanonicalProduct, linkGroupToCanonicalProduct } from "./site-catalog-products.mjs";
+import { getSiteCatalogGroup, listSiteCatalogDecisions, listSiteCatalogGroupItems, updateSiteCatalogGroup, upsertSiteCatalogDecision } from "./site-catalog-repository.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -82,6 +82,20 @@ function groupUpdatePayload(group, linked) {
   };
 }
 
+function decisionUpdatePayload(itemId, linked) {
+  return {
+    itemId: String(itemId || ""),
+    approved: Boolean(linked.approved),
+    siteVisibility: String(linked.site_visibility || "hidden"),
+    collectionSlug: String(linked.collection_slug || ""),
+    siteName: String(linked.site_name || ""),
+    siteSlug: String(linked.site_slug || ""),
+    featured: Boolean(linked.featured),
+    priceMode: String(linked.price_mode || "marketplace"),
+    heroPictureUrl: String(linked.hero_picture_url || "")
+  };
+}
+
 async function handleCatalogLinkingApi(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
@@ -103,6 +117,10 @@ async function handleCatalogLinkingApi(request, env) {
       groups: (catalog.groups || []).map((group) => ({
         ...group,
         linked_product_slug: productSlugs.has(String(group.site_slug || "")) ? String(group.site_slug) : ""
+      })),
+      items: (catalog.items || []).map((item) => ({
+        item_id: String(item.item_id || ""),
+        linked_product_slug: productSlugs.has(String(item.decision?.site_slug || "")) ? String(item.decision.site_slug) : ""
       }))
     });
   }
@@ -110,8 +128,48 @@ async function handleCatalogLinkingApi(request, env) {
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     const groupId = String(body.group_id || "").trim();
+    const itemId = String(body.item_id || "").trim();
     const linkedProductSlug = String(body.linked_product_slug || "").trim();
-    if (!groupId) return json({ error: "group_id obrigatório." }, 400);
+    if ((!groupId && !itemId) || (groupId && itemId)) {
+      return json({ error: "Informe exatamente um group_id ou item_id." }, 400);
+    }
+
+    if (itemId) {
+      const groupItems = await listSiteCatalogGroupItems(env, sellerId);
+      if (groupItems.some((entry) => String(entry.item_id || "") === itemId)) {
+        return json({ error: "Anúncio agrupado deve ser vinculado pela página do grupo." }, 409);
+      }
+      const decisions = await listSiteCatalogDecisions(env, sellerId);
+      const decision = decisions.find((entry) => String(entry.item_id || "") === itemId) || {
+        item_id: itemId,
+        approved: false,
+        site_visibility: "hidden",
+        collection_slug: "",
+        site_name: "",
+        site_slug: "",
+        featured: false,
+        price_mode: "marketplace",
+        hero_picture_url: ""
+      };
+      let linked;
+      try {
+        linked = linkDecisionToCanonicalProduct(decision, linkedProductSlug, canonicalProducts.products, canonicalCollections.collections);
+      } catch (error) {
+        return json({ error: error.message || "Página ArtiSys inválida." }, 400);
+      }
+      const saved = await upsertSiteCatalogDecision(env, sellerId, decisionUpdatePayload(itemId, linked));
+      return json({
+        ok: true,
+        item_id: itemId,
+        linked_product_slug: linkedProductSlug,
+        site_name: String(saved?.site_name || ""),
+        site_slug: String(saved?.site_slug || ""),
+        site_visibility: String(saved?.site_visibility || "hidden"),
+        collection_slug: String(saved?.collection_slug || ""),
+        approved: Number(saved?.approved || 0) === 1
+      });
+    }
+
     const group = await getSiteCatalogGroup(env, sellerId, groupId);
     if (!group) return json({ error: "Grupo não encontrado." }, 404);
     let linked;
