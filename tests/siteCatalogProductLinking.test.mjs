@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
+// O vínculo com a página ArtiSys precisa funcionar tanto em grupos quanto em anúncios individuais.
 const productsModule = await import('../cloudflare/src/site-catalog-products.mjs');
 const wrapperSource = fs.readFileSync('cloudflare/src/site-catalog-index.mjs', 'utf8');
 const adminSource = fs.readFileSync('admin-site-catalog.js', 'utf8');
