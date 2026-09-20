@@ -1,0 +1,115 @@
+name: One-shot individual page linking
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/one-shot-individual-page-linking.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/individual-page-linking
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply individual linking implementation
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          # 1) Reuse the canonical linking semantics for individual decisions.
+          products_path = Path('cloudflare/src/site-catalog-products.mjs')
+          products = products_path.read_text(encoding='utf-8')
+          anchor = '\nexport async function fetchCanonicalProducts(env = {}, fetchImpl = fetch) {'
+          helper = '''\nexport function linkDecisionToCanonicalProduct(decision = {}, linkedProductSlug, products = [], collections = []) {\n  return linkGroupToCanonicalProduct(decision, linkedProductSlug, products, collections);\n}\n'''
+          assert anchor in products, 'products fetch anchor not found'
+          if 'export function linkDecisionToCanonicalProduct' not in products:
+              products = products.replace(anchor, helper + anchor, 1)
+          products_path.write_text(products, encoding='utf-8')
+
+          # 2) Extend the protected linking API to individual item_id targets.
+          index_path = Path('cloudflare/src/site-catalog-index.mjs')
+          source = index_path.read_text(encoding='utf-8')
+          source = source.replace(
+              'import { fetchCanonicalProducts, linkGroupToCanonicalProduct } from "./site-catalog-products.mjs";',
+              'import { fetchCanonicalProducts, linkDecisionToCanonicalProduct, linkGroupToCanonicalProduct } from "./site-catalog-products.mjs";',
+              1
+          )
+          source = source.replace(
+              'import { getSiteCatalogGroup, updateSiteCatalogGroup } from "./site-catalog-repository.mjs";',
+              'import { getSiteCatalogGroup, listSiteCatalogDecisions, listSiteCatalogGroupItems, updateSiteCatalogGroup, upsertSiteCatalogDecision } from "./site-catalog-repository.mjs";',
+              1
+          )
+
+          payload_anchor = '\nasync function handleCatalogLinkingApi(request, env) {'
+          decision_payload = '''\nfunction decisionUpdatePayload(itemId, linked) {\n  return {\n    itemId: String(itemId || ""),\n    approved: Boolean(linked.approved),\n    siteVisibility: String(linked.site_visibility || "hidden"),\n    collectionSlug: String(linked.collection_slug || ""),\n    siteName: String(linked.site_name || ""),\n    siteSlug: String(linked.site_slug || ""),\n    featured: Boolean(linked.featured),\n    priceMode: String(linked.price_mode || "marketplace"),\n    heroPictureUrl: String(linked.hero_picture_url || "")\n  };\n}\n'''
+          assert payload_anchor in source, 'linking handler anchor not found'
+          if 'function decisionUpdatePayload' not in source:
+              source = source.replace(payload_anchor, decision_payload + payload_anchor, 1)
+
+          old_get = '''      groups: (catalog.groups || []).map((group) => ({\n        ...group,\n        linked_product_slug: productSlugs.has(String(group.site_slug || "")) ? String(group.site_slug) : ""\n      }))\n'''
+          new_get = '''      groups: (catalog.groups || []).map((group) => ({\n        ...group,\n        linked_product_slug: productSlugs.has(String(group.site_slug || "")) ? String(group.site_slug) : ""\n      })),\n      items: (catalog.items || []).map((item) => ({\n        item_id: String(item.item_id || ""),\n        linked_product_slug: productSlugs.has(String(item.decision?.site_slug || "")) ? String(item.decision.site_slug) : ""\n      }))\n'''
+          assert old_get in source, 'linking GET group mapping not found'
+          source = source.replace(old_get, new_get, 1)
+
+          post_start = source.index('  if (request.method === "POST") {', source.index('async function handleCatalogLinkingApi'))
+          post_end = source.index('\n\n  return json({ error: "Método não permitido." }, 405);', post_start)
+          new_post = '''  if (request.method === "POST") {\n    const body = await request.json().catch(() => ({}));\n    const groupId = String(body.group_id || "").trim();\n    const itemId = String(body.item_id || "").trim();\n    const linkedProductSlug = String(body.linked_product_slug || "").trim();\n    if ((!groupId && !itemId) || (groupId && itemId)) {\n      return json({ error: "Informe exatamente um group_id ou item_id." }, 400);\n    }\n\n    if (itemId) {\n      const groupItems = await listSiteCatalogGroupItems(env, sellerId);\n      if (groupItems.some((entry) => String(entry.item_id || "") === itemId)) {\n        return json({ error: "Anúncio agrupado deve ser vinculado pela página do grupo." }, 409);\n      }\n      const decisions = await listSiteCatalogDecisions(env, sellerId);\n      const decision = decisions.find((entry) => String(entry.item_id || "") === itemId) || {\n        item_id: itemId,\n        approved: false,\n        site_visibility: "hidden",\n        collection_slug: "",\n        site_name: "",\n        site_slug: "",\n        featured: false,\n        price_mode: "marketplace",\n        hero_picture_url: ""\n      };\n      let linked;\n      try {\n        linked = linkDecisionToCanonicalProduct(decision, linkedProductSlug, canonicalProducts.products, canonicalCollections.collections);\n      } catch (error) {\n        return json({ error: error.message || "Página ArtiSys inválida." }, 400);\n      }\n      const saved = await upsertSiteCatalogDecision(env, sellerId, decisionUpdatePayload(itemId, linked));\n      return json({\n        ok: true,\n        item_id: itemId,\n        linked_product_slug: linkedProductSlug,\n        site_name: String(saved?.site_name || ""),\n        site_slug: String(saved?.site_slug || ""),\n        site_visibility: String(saved?.site_visibility || "hidden"),\n        collection_slug: String(saved?.collection_slug || ""),\n        approved: Number(saved?.approved || 0) === 1\n      });\n    }\n\n    const group = await getSiteCatalogGroup(env, sellerId, groupId);\n    if (!group) return json({ error: "Grupo não encontrado." }, 404);\n    let linked;\n    try {\n      linked = linkGroupToCanonicalProduct(group, linkedProductSlug, canonicalProducts.products, canonicalCollections.collections);\n    } catch (error) {\n      return json({ error: error.message || "Página ArtiSys inválida." }, 400);\n    }\n    const saved = await updateSiteCatalogGroup(env, sellerId, groupUpdatePayload(group, linked));\n    return json({\n      ok: true,\n      group_id: groupId,\n      linked_product_slug: linkedProductSlug,\n      site_name: String(saved?.site_name || ""),\n      site_slug: String(saved?.site_slug || ""),\n      site_visibility: String(saved?.site_visibility || "hidden"),\n      collection_slug: String(saved?.collection_slug || ""),\n      approved: Number(saved?.approved || 0) === 1\n    });\n  }'''
+          source = source[:post_start] + new_post + source[post_end:]
+          index_path.write_text(source, encoding='utf-8')
+
+          # 3) Render one native linking control in both individual and grouped cards.
+          admin_path = Path('admin-site-catalog.js')
+          admin = admin_path.read_text(encoding='utf-8')
+          post_start = admin.index('async function postLinking(')
+          save_anchor = admin.index('\n\n  async function saveItem', post_start)
+          shared = '''async function postLinking(target, linkedProductSlug) {\n  const response = await fetch('/api/site-catalog/linking', {\n    method: 'POST',\n    credentials: 'same-origin',\n    headers: { 'content-type': 'application/json' },\n    body: JSON.stringify({ ...target, linked_product_slug: linkedProductSlug })\n  });\n  const data = await response.json().catch(() => ({}));\n  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);\n  return data;\n}\n\n  function appendArtisysLinking(form, target, controls, linkedProductSlug, entry) {\n    const productSelect = select([\n      ['', 'Sem página vinculada'],\n      ...canonicalProducts.map((product) => [\n        String(product.slug || ''),\n        `${product.name || product.slug}${product.category ? ` · ${product.category}` : ''}`\n      ])\n    ], linkedProductSlug);\n    const linkButton = document.createElement('button');\n    linkButton.type = 'button';\n    linkButton.className = 'button secondary';\n    linkButton.textContent = 'Salvar vínculo';\n    linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;\n    productSelect.disabled = linkButton.disabled;\n    const linkFeedback = document.createElement('span');\n    linkFeedback.className = 'meta';\n    if (productsSource === 'unavailable') {\n      linkFeedback.textContent = productsWarning || 'Não foi possível carregar as páginas ArtiSys.';\n      linkFeedback.className = 'meta error';\n    } else if (linkedProductSlug) {\n      const currentProduct = canonicalProducts.find((product) => String(product.slug || '') === linkedProductSlug);\n      linkFeedback.textContent = currentProduct ? `Página atual: ${currentProduct.name}.` : 'Página vinculada.';\n    } else {\n      linkFeedback.textContent = target.group_id\n        ? 'Selecione manualmente a página ArtiSys representada por este grupo.'\n        : 'Selecione manualmente a página ArtiSys representada por este anúncio.';\n    }\n    const linkRow = document.createElement('div');\n    linkRow.className = 'row two artisys-link-row';\n    linkRow.append(field('Página ArtiSys vinculada', productSelect), linkButton);\n    linkButton.addEventListener('click', async () => {\n      linkButton.disabled = true;\n      productSelect.disabled = true;\n      linkFeedback.textContent = 'Salvando vínculo…';\n      linkFeedback.className = 'meta';\n      try {\n        const linked = await postLinking(target, productSelect.value);\n        entry.linked_product_slug = String(linked.linked_product_slug || '');\n        if (linked.site_name !== undefined) controls.name.value = String(linked.site_name || '');\n        if (linked.site_slug !== undefined) controls.slug.value = String(linked.site_slug || '');\n        if (linked.site_visibility) controls.visibility.value = String(linked.site_visibility);\n        controls.collection.value = String(linked.collection_slug || '');\n        controls.approved.input.checked = Boolean(linked.approved);\n        linkFeedback.textContent = productSelect.value\n          ? `Vinculado a ${linked.site_name || productSelect.selectedOptions[0]?.textContent || productSelect.value}.`\n          : 'Vínculo removido.';\n        linkFeedback.className = 'meta ok';\n        await load();\n      } catch (error) {\n        linkFeedback.textContent = error.message || 'Falha ao salvar vínculo.';\n        linkFeedback.className = 'meta error';\n        linkButton.disabled = productsSource === 'unavailable' || canonicalProducts.length === 0;\n        productSelect.disabled = linkButton.disabled;\n      }\n    });\n    form.append(linkRow, linkFeedback);\n  }'''
+          admin = admin[:post_start] + shared + admin[save_anchor:]
+
+          item_start = admin.index('  function renderItemCard(item) {')
+          item_end = admin.index('\n  function renderGroupCard(group) {', item_start)
+          item_block = admin[item_start:item_end]
+          item_anchor = "    form.className = 'controls';\n    appendClassificationForm(form, controls);"
+          item_replacement = "    form.className = 'controls';\n    appendArtisysLinking(form, { item_id: item.item_id }, controls, String(item.linked_product_slug || ''), item);\n    appendClassificationForm(form, controls);"
+          assert item_anchor in item_block, 'individual form anchor not found'
+          item_block = item_block.replace(item_anchor, item_replacement, 1)
+          admin = admin[:item_start] + item_block + admin[item_end:]
+
+          group_start = admin.index('  function renderGroupCard(group) {')
+          link_start = admin.index("    const linkedProductSlug = String(group.linked_product_slug || '');", group_start)
+          group_marker = '  appendClassificationForm(form, controls);'
+          link_end = admin.index(group_marker, link_start) + len(group_marker)
+          replacement = "    appendArtisysLinking(form, { group_id: group.group_id }, controls, String(group.linked_product_slug || ''), group);\n    appendClassificationForm(form, controls);"
+          admin = admin[:link_start] + replacement + admin[link_end:]
+
+          load_group = '''    catalogGroups = catalogGroups.map((group) => ({\n      ...group,\n      linked_product_slug: linkedByGroup.get(String(group.group_id || '')) || ''\n    }));\n'''
+          load_both = '''    catalogGroups = catalogGroups.map((group) => ({\n      ...group,\n      linked_product_slug: linkedByGroup.get(String(group.group_id || '')) || ''\n    }));\n    const linkedByItem = new Map((Array.isArray(linkingData.items) ? linkingData.items : []).map((entry) => [\n      String(entry.item_id || ''),\n      String(entry.linked_product_slug || '')\n    ]));\n    catalogItems = catalogItems.map((item) => ({\n      ...item,\n      linked_product_slug: linkedByItem.get(String(item.item_id || '')) || ''\n    }));\n'''
+          assert load_group in admin, 'load group linking map not found'
+          admin = admin.replace(load_group, load_both, 1)
+          admin_path.write_text(admin, encoding='utf-8')
+          PY
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Syntax check
+        run: npm run check
+      - name: Tests
+        run: npm test
+      - name: Design context lint
+        run: npx -y -p @google/design.md designmd lint DESIGN.md
+      - name: Commit implementation to feature branch
+        shell: bash
+        run: |
+          git config user.name "artisys-ci"
+          git config user.email "artisys-ci@users.noreply.github.com"
+          git add cloudflare/src/site-catalog-products.mjs cloudflare/src/site-catalog-index.mjs admin-site-catalog.js
+          git commit -m "fix: renderizar vínculo ArtiSys em anúncio individual"
+          git push origin HEAD:fix/individual-page-linking
