@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ArtiSys — Central de Licenças</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#10231a;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}.shell{max-width:1180px;margin:0 auto;padding:24px 18px 48px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}.top a{color:#17683f;text-decoration:none;font-weight:700}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#5e7066}.title{margin:4px 0 0;font-size:30px}.lead{margin:8px 0 0;color:#5e7066}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:6px 10px;background:#e8f5ed;color:#17683f;font-size:12px;font-weight:800}.status{margin:18px 0;padding:12px 14px;border-radius:12px;background:white;border:1px solid #dce6df;color:#516159}.status.error{border-color:#efc9c9;color:#8b2525}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.card,.panel{background:#fff;border:1px solid #dce6df;border-radius:16px;box-shadow:0 4px 18px rgba(16,35,26,.04)}.card{padding:16px}.card strong{display:block;font-size:26px;margin-top:6px}.panel{padding:18px;margin-top:16px}.panel h2{margin:0 0 4px;font-size:20px}.panel p{margin:0 0 14px;color:#66766e}.table-wrap{overflow:auto;border:1px solid #e3eae6;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:860px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #edf1ef;font-size:13px;vertical-align:top}th{background:#f8faf9;color:#526159;font-size:11px;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.pill{display:inline-flex;border-radius:999px;padding:3px 8px;background:#eef3f0;font-size:11px;font-weight:800}.muted{color:#75837c}.empty{padding:18px;color:#75837c}.warning{color:#955e12}.footer{margin-top:18px;color:#75837c;font-size:12px}@media(max-width:800px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.top{align-items:flex-start;flex-direction:column}.title{font-size:26px}}@media(max-width:520px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="top">
+    <div><a href="/admin?view=mais">← Voltar ao painel</a><div class="eyebrow" style="margin-top:14px">ArtiSys</div><h1 class="title">Central de Licenças</h1><p class="lead">Espelho administrativo da central atual. Nenhuma ação de criação, renovação, suspensão ou edição está habilitada.</p></div>
+    <span class="badge">Somente leitura</span>
+  </div>
+  <div id="status" class="status">Carregando dados da autoridade de licenças atual…</div>
+  <section class="cards">
+    <div class="card"><span class="eyebrow">Obra na Mão</span><strong id="obraCount">—</strong><span class="muted">empresas/licenças</span></div>
+    <div class="card"><span class="eyebrow">Débora Lactação</span><strong id="deboraCount">—</strong><span class="muted">clientes comerciais</span></div>
+    <div class="card"><span class="eyebrow">Loja Online</span><strong id="lojaCount">—</strong><span class="muted">clientes</span></div>
+    <div class="card"><span class="eyebrow">Auditoria</span><strong id="auditCount">—</strong><span class="muted">eventos recentes</span></div>
+  </section>
+  <section class="panel"><h2>Obra na Mão</h2><p>Mesma visão usada pela central atual: empresa, administrador, status, validade, módulos, canais e dispositivos.</p><div id="obraTable"></div></section>
+  <section class="panel"><h2>Débora Lactação</h2><p>Licenças comerciais registradas na autoridade atual do Cloudflare D1.</p><div id="deboraTable"></div></section>
+  <section class="panel"><h2>Loja Online</h2><p>Consulta read-only via a integração server-to-server já existente no Obra na Mão.</p><div id="lojaTable"></div></section>
+  <section class="panel"><h2>Auditoria</h2><p>Eventos recentes de Obra na Mão e Débora Lactação.</p><div id="auditTable"></div></section>
+  <div class="footer" id="generatedAt"></div>
+</main>
+<script>
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const fmtDate=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR')};
+const list=value=>Array.isArray(value)&&value.length?value.map(esc).join(', '):'—';
+const pill=value=>`<span class="pill">${esc(value||'—')}</span>`;
+function table(target,headers,rows){const el=document.getElementById(target);if(!rows.length){el.innerHTML='<div class="empty">Nenhum registro.</div>';return}el.innerHTML=`<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h.label)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${headers.map(h=>`<td>${h.render(row)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+async function load(){const status=document.getElementById('status');try{const response=await fetch('/api/license-center',{credentials:'same-origin'});const data=await response.json();if(!response.ok)throw new Error(data.message||data.error||'Falha ao carregar');
+ const obra=data.obra?.companies||[],debora=data.debora?.clients||[],loja=data.lojaOnline?.companies||[],audit=data.audit?.events||[];
+ document.getElementById('obraCount').textContent=obra.length;document.getElementById('deboraCount').textContent=data.debora?.overview?.clients??debora.length;document.getElementById('lojaCount').textContent=data.lojaOnline?.available===false?'—':loja.length;document.getElementById('auditCount').textContent=audit.length;
+ table('obraTable',[{label:'Empresa',render:r=>esc(r.name)},{label:'Admin',render:r=>esc(r.adminEmail||'—')},{label:'Status',render:r=>pill(r.status)},{label:'Plano',render:r=>esc(r.license?.plan||'—')},{label:'Validade',render:r=>fmtDate(r.license?.expiresAt)},{label:'Módulos',render:r=>list(r.modules)},{label:'Canais',render:r=>list(r.channels)},{label:'Dispositivos',render:r=>esc(r.devicesCount??0)}],obra);
+ table('deboraTable',[{label:'E-mail',render:r=>esc(r.email)},{label:'Status',render:r=>pill(r.status)},{label:'Plano',render:r=>esc(r.planCode||'—')},{label:'Validade',render:r=>fmtDate(r.expiresAt)},{label:'Origem',render:r=>esc(r.source||'—')},{label:'Expira em breve',render:r=>r.expiring?'Sim':'Não'}],debora);
+ if(data.lojaOnline?.available===false){document.getElementById('lojaTable').innerHTML=`<div class="empty warning">Loja Online indisponível nesta consulta: ${esc(data.lojaOnline.error||'erro não informado')}</div>`}else{table('lojaTable',[{label:'Empresa',render:r=>esc(r.company?.name||'—')},{label:'Admin',render:r=>esc(r.admin?.email||'—')},{label:'Status',render:r=>pill(r.accessStatus)},{label:'Plano',render:r=>esc(r.license?.plan||'—')},{label:'Validade',render:r=>fmtDate(r.license?.expiresAt)},{label:'Usuários',render:r=>esc(r.userCount??0)}],loja)}
+ table('auditTable',[{label:'Quando',render:r=>fmtDate(r.createdAt)},{label:'Produto',render:r=>esc(r.product)},{label:'E-mail',render:r=>esc(r.email||'—')},{label:'Ação',render:r=>esc(r.action)},{label:'Origem',render:r=>esc(r.source||'—')},{label:'Ator',render:r=>esc(r.actor||'—')}],audit);
+ status.textContent='Dados carregados diretamente da autoridade atual de licenças. Nenhuma escrita foi executada.';document.getElementById('generatedAt').textContent=`Snapshot gerado em ${fmtDate(data.generatedAt)}.`;
+ }catch(error){status.classList.add('error');status.textContent=`Não foi possível carregar a central: ${error.message}`}}
+load();
+</script>
+</body>
+</html>

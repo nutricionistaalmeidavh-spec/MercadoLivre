@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
+const generalWrapper = fs.readFileSync("cloudflare/src/general-panel-index.mjs", "utf8");
 const wrapper = fs.readFileSync("cloudflare/src/site-catalog-index.mjs", "utf8");
 const catalogSource = fs.readFileSync("cloudflare/src/site-catalog.mjs", "utf8");
 const collectionSource = fs.readFileSync("cloudflare/src/site-catalog-collections.mjs", "utf8");
@@ -12,8 +13,11 @@ const assetsIgnore = fs.readFileSync(".assetsignore", "utf8");
 const adminPage = fs.readFileSync("admin-site-catalog.html", "utf8");
 const adminScript = fs.readFileSync("admin-site-catalog.js", "utf8");
 
-test("site catalog wrapper becomes Cloudflare entrypoint and keeps existing worker delegated", () => {
-  assert.match(wrangler, /"main"\s*:\s*"\.\/src\/site-catalog-index\.mjs"/);
+test("general panel wrapper becomes Cloudflare entrypoint and keeps site catalog worker delegated", () => {
+  assert.match(wrangler, /"main"\s*:\s*"\.\/src\/general-panel-index\.mjs"/);
+  assert.match(generalWrapper, /import baseWorker from "\.\/site-catalog-index\.mjs"/);
+  assert.match(generalWrapper, /return baseWorker\.fetch\(request, env, ctx\)/);
+  assert.match(generalWrapper, /baseWorker\.scheduled/);
   assert.match(wrapper, /import baseWorker from "\.\/index\.mjs"/);
   assert.match(wrapper, /return baseWorker\.fetch\(request, env, ctx\)/);
   assert.match(wrapper, /baseWorker\.scheduled/);
