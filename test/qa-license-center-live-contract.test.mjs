@@ -26,3 +26,16 @@ test('live license center e2e is baseline-protected and explicit opt-in',()=>{
   assert.match(source,/final.*block|cleanup.*block|\/block/s);
   assert.doesNotMatch(source,/for\s*\([^)]*baselineIds[^)]*\)\s*\{[^}]*\b(put|post|mutate|write)\b/is);
 });
+
+test('live verification tolerates bounded snapshot propagation without hiding persistent divergence',()=>{
+  const source=fs.readFileSync('scripts/qa-license-center-live.mjs','utf8');
+  assert.match(source,/async function verifyBothEventually\(label,predicate/);
+  assert.match(source,/SNAPSHOT_VERIFY_ATTEMPTS\s*=\s*\d+/);
+  assert.match(source,/SNAPSHOT_VERIFY_DELAY_MS\s*=\s*\d+/);
+  assert.match(source,/for\s*\(let attempt=1;attempt<=SNAPSHOT_VERIFY_ATTEMPTS;attempt\+\+\)/);
+  assert.match(source,/await Promise\.all\(\[panelSnapshot\(\),authoritySnapshot\(\)\]\)/);
+  assert.match(source,/setTimeout\(resolve,SNAPSHOT_VERIFY_DELAY_MS\)/);
+  assert.match(source,/panel_mismatch/);
+  assert.match(source,/authority_mismatch/);
+  assert.match(source,/verifyBothEventually\('loja-extend'/);
+});
