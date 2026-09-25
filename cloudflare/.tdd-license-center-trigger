@@ -1,1 +1,1 @@
-TDD trigger 2: administrative UI contract must fail before license-center.js exists.
+TDD trigger 3: isolated E2E contract must fail before harness exists.
