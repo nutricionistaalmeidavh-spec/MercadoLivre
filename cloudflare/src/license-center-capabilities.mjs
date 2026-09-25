@@ -4,6 +4,8 @@ export const SUPPORTED_LICENSE_CENTER_CAPABILITIES=new Set([
   'obra.company.update-license',
   'obra.device.control',
   'debora.license.manage',
+  'debora.observability.read',
+  'debora.manual-sales.manage',
   'owner.license.audit',
   'loja-online.company.read',
   'loja-online.company.create',
