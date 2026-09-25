@@ -1,1 +1,1 @@
-TDD trigger 4: live E2E safety contract must fail before production harness exists.
+TDD trigger 5: live admin parity verifier contract must fail before verifier exists.
