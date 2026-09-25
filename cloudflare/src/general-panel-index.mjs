@@ -1,6 +1,6 @@
 import baseWorker from "./site-catalog-index.mjs";
 import { decryptJson } from "./crypto.mjs";
-import { handleLicenseCenterApi, proxyLicenseCenterWrite, serveLicenseCenterPage } from "./license-center.mjs";
+import { handleLicenseCenterApi, proxyLicenseCenterRead, proxyLicenseCenterWrite, serveLicenseCenterPage } from "./license-center.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -52,16 +52,33 @@ async function serveLicenseCenter(request, env) {
   return serveLicenseCenterPage(request, env);
 }
 
-function licenseCenterWriteTarget(pathname,method){
+export function licenseCenterWriteTarget(pathname,method){
   if(pathname==="/api/license-center/obra/companies"&&method==="POST")return "/api/internal/license-center/obra/companies";
   let match=pathname.match(/^\/api\/license-center\/obra\/companies\/([^/]+)$/);
   if(match&&method==="PUT")return `/api/internal/license-center/obra/companies/${encodeURIComponent(decodeURIComponent(match[1]))}`;
   match=pathname.match(/^\/api\/license-center\/obra\/devices\/([^/]+)$/);
   if(match&&method==="PUT")return `/api/internal/license-center/obra/devices/${encodeURIComponent(decodeURIComponent(match[1]))}`;
   if(pathname==="/api/license-center/debora/license"&&method==="POST")return "/api/internal/license-center/debora/license";
+  if(pathname==="/api/license-center/debora/manual-sales/classify"&&method==="POST")return "/api/internal/license-center/debora/manual-sales/classify";
   if(pathname==="/api/license-center/loja-online/companies"&&method==="POST")return "/api/internal/license-center/loja-online/companies";
   match=pathname.match(/^\/api\/license-center\/loja-online\/companies\/([^/]+)\/(license|extend|block|unblock)$/);
   if(match&&((match[2]==="license"&&method==="PUT")||(match[2]!=="license"&&method==="POST")))return `/api/internal/license-center/loja-online/companies/${encodeURIComponent(decodeURIComponent(match[1]))}/${match[2]}`;
+  return null;
+}
+
+export function licenseCenterReadTarget(pathname,method,search=""){
+  if(method!=="GET")return null;
+  const direct=new Map([
+    ["/api/license-center/debora/observability/summary","/api/internal/license-center/debora/observability/summary"],
+    ["/api/license-center/debora/observability/users","/api/internal/license-center/debora/observability/users"],
+    ["/api/license-center/debora/observability/sales","/api/internal/license-center/debora/observability/sales"],
+    ["/api/license-center/debora/manual-sales","/api/internal/license-center/debora/manual-sales"],
+    ["/api/license-center/debora/manual-sales/summary","/api/internal/license-center/debora/manual-sales/summary"]
+  ]);
+  const target=direct.get(pathname);
+  if(target)return `${target}${search}`;
+  const match=pathname.match(/^\/api\/license-center\/debora\/observability\/users\/([^/]+)\/sessions$/);
+  if(match)return `/api/internal/license-center/debora/observability/users/${encodeURIComponent(decodeURIComponent(match[1]))}/sessions${search}`;
   return null;
 }
 
@@ -70,9 +87,11 @@ async function handleLicenseCenter(request, env) {
   if (denied) return denied;
   const url=new URL(request.url);
   if(url.pathname==="/api/license-center")return handleLicenseCenterApi(request, env);
-  const target=licenseCenterWriteTarget(url.pathname,request.method);
-  if(!target)return json({error:"not_found"},404);
-  return proxyLicenseCenterWrite(request,env,target);
+  const readTarget=licenseCenterReadTarget(url.pathname,request.method,url.search);
+  if(readTarget)return proxyLicenseCenterRead(request,env,readTarget);
+  const writeTarget=licenseCenterWriteTarget(url.pathname,request.method);
+  if(!writeTarget)return json({error:"not_found"},404);
+  return proxyLicenseCenterWrite(request,env,writeTarget);
 }
 
 export default {
