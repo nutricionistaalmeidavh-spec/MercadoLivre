@@ -9,13 +9,13 @@ test("read-only proxy sends only GET to Obra service binding with server-side se
     OBRA_LICENSING: {
       async fetch(request) {
         captured = request;
-        return new Response(JSON.stringify({ obra: { companies: [] } }), { status: 200, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify({ obra: { companies: [] }, adminParity:{contractVersion:1,requiredCapabilities:[]} }), { status: 200, headers: { "content-type": "application/json" } });
       }
     }
   };
 
   const payload = await fetchLicenseCenterSnapshot(env);
-  assert.deepEqual(payload, { obra: { companies: [] } });
+  assert.deepEqual(payload, { obra: { companies: [] }, adminParity:{contractVersion:1,requiredCapabilities:[]}, parity:{status:'complete',missing:[]} });
   assert.equal(captured.method, "GET");
   assert.equal(new URL(captured.url).pathname, "/api/internal/license-center/snapshot");
   assert.equal(captured.headers.get("x-artisys-license-center-secret"), "read-secret");

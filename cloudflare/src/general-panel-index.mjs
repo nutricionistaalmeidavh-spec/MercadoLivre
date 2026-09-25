@@ -1,6 +1,6 @@
 import baseWorker from "./site-catalog-index.mjs";
 import { decryptJson } from "./crypto.mjs";
-import { handleLicenseCenterApi, serveLicenseCenterPage } from "./license-center.mjs";
+import { handleLicenseCenterApi, proxyLicenseCenterWrite, serveLicenseCenterPage } from "./license-center.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
 
@@ -40,7 +40,7 @@ async function serveAdminWithLicenseLink(request, env, ctx) {
   if (!response.ok || !String(response.headers.get("content-type") || "").includes("text/html")) return response;
   let html = await response.text();
   if (!html.includes('href="/licenses"')) {
-    const card = '<a class="more-link" href="/licenses"><div><strong>Central de Licenças</strong><span>Consulte clientes, licenças, validade, módulos, dispositivos e auditoria. Somente leitura nesta etapa.</span></div><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m9 18 6-6-6-6"/></svg></a>';
+    const card = '<a class="more-link" href="/licenses"><div><strong>Central de Licenças</strong><span>Administre clientes, licenças, validade, módulos, dispositivos e auditoria em uma única central.</span></div><svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m9 18 6-6-6-6"/></svg></a>';
     html = html.replace('<div class="more-grid">', `<div class="more-grid">${card}`);
   }
   return new Response(html, { status: response.status, headers: response.headers });
@@ -52,10 +52,27 @@ async function serveLicenseCenter(request, env) {
   return serveLicenseCenterPage(request, env);
 }
 
+function licenseCenterWriteTarget(pathname,method){
+  if(pathname==="/api/license-center/obra/companies"&&method==="POST")return "/api/internal/license-center/obra/companies";
+  let match=pathname.match(/^\/api\/license-center\/obra\/companies\/([^/]+)$/);
+  if(match&&method==="PUT")return `/api/internal/license-center/obra/companies/${encodeURIComponent(decodeURIComponent(match[1]))}`;
+  match=pathname.match(/^\/api\/license-center\/obra\/devices\/([^/]+)$/);
+  if(match&&method==="PUT")return `/api/internal/license-center/obra/devices/${encodeURIComponent(decodeURIComponent(match[1]))}`;
+  if(pathname==="/api/license-center/debora/license"&&method==="POST")return "/api/internal/license-center/debora/license";
+  if(pathname==="/api/license-center/loja-online/companies"&&method==="POST")return "/api/internal/license-center/loja-online/companies";
+  match=pathname.match(/^\/api\/license-center\/loja-online\/companies\/([^/]+)\/(license|extend|block|unblock)$/);
+  if(match&&((match[2]==="license"&&method==="PUT")||(match[2]!=="license"&&method==="POST")))return `/api/internal/license-center/loja-online/companies/${encodeURIComponent(decodeURIComponent(match[1]))}/${match[2]}`;
+  return null;
+}
+
 async function handleLicenseCenter(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
-  return handleLicenseCenterApi(request, env);
+  const url=new URL(request.url);
+  if(url.pathname==="/api/license-center")return handleLicenseCenterApi(request, env);
+  const target=licenseCenterWriteTarget(url.pathname,request.method);
+  if(!target)return json({error:"not_found"},404);
+  return proxyLicenseCenterWrite(request,env,target);
 }
 
 export default {
@@ -66,7 +83,7 @@ export default {
         return await serveAdminWithLicenseLink(request, env, ctx);
       }
       if (url.pathname === "/licenses" || url.pathname === "/licenses/") return await serveLicenseCenter(request, env);
-      if (url.pathname === "/api/license-center") return await handleLicenseCenter(request, env);
+      if (url.pathname === "/api/license-center" || url.pathname.startsWith("/api/license-center/")) return await handleLicenseCenter(request, env);
       return baseWorker.fetch(request, env, ctx);
     } catch (error) {
       console.error("general_panel_worker_error", { path: url.pathname, message: error?.message || String(error) });
