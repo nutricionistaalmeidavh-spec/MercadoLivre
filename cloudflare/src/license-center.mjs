@@ -1,9 +1,22 @@
+import { compareCapabilities } from "./license-center-capabilities.mjs";
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
   });
 }
+
+const INTERNAL_WRITE_PATTERNS=[
+  /^\/api\/internal\/license-center\/obra\/companies$/,
+  /^\/api\/internal\/license-center\/obra\/companies\/[^/]+$/,
+  /^\/api\/internal\/license-center\/obra\/devices\/[^/]+$/,
+  /^\/api\/internal\/license-center\/debora\/license$/,
+  /^\/api\/internal\/license-center\/loja-online\/companies$/,
+  /^\/api\/internal\/license-center\/loja-online\/companies\/[^/]+\/(license|extend|block|unblock)$/
+];
+
+function allowedInternalTarget(path){return INTERNAL_WRITE_PATTERNS.some(pattern=>pattern.test(path));}
 
 export async function fetchLicenseCenterSnapshot(env) {
   const binding = env.OBRA_LICENSING;
@@ -22,13 +35,26 @@ export async function fetchLicenseCenterSnapshot(env) {
     error.statusCode = response.status;
     throw error;
   }
-  return payload;
+  return {...payload,parity:compareCapabilities(payload?.adminParity?.requiredCapabilities||[])};
+}
+
+export async function proxyLicenseCenterWrite(request,env,targetPath){
+  const binding=env.OBRA_LICENSING;
+  const secret=String(env.OBRA_LICENSE_CENTER_WRITE_SECRET||"").trim();
+  if(!binding?.fetch)return json({error:"license_center_unavailable",message:"OBRA_LICENSING não configurado."},503);
+  if(!secret)return json({error:"write_secret_missing",message:"OBRA_LICENSE_CENTER_WRITE_SECRET não configurado."},503);
+  if(!allowedInternalTarget(targetPath))return json({error:"write_target_not_allowed"},404);
+  const headers=new Headers({"content-type":"application/json","x-artisys-license-center-write-secret":secret});
+  const qaRun=String(request.headers.get("x-artisys-qa-run")||"").trim();
+  if(qaRun)headers.set("x-artisys-qa-run",qaRun);
+  const body=request.method==="GET"||request.method==="HEAD"?undefined:await request.text();
+  const upstream=await binding.fetch(new Request(`https://obra.internal${targetPath}`,{method:request.method,headers,body}));
+  const payload=await upstream.json().catch(()=>({}));
+  return json(payload,upstream.status);
 }
 
 export async function handleLicenseCenterApi(request, env) {
-  if (request.method !== "GET") {
-    return json({ error: "read_only", message: "Central de Licenças disponível somente para leitura nesta etapa." }, 405);
-  }
+  if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
   try {
     return json(await fetchLicenseCenterSnapshot(env));
   } catch (error) {
