@@ -44,6 +44,17 @@ export async function proxyLicenseCenterWrite(request,env,targetPath){
   if(!binding?.fetch)return json({error:"license_center_unavailable",message:"OBRA_LICENSING não configurado."},503);
   if(!secret)return json({error:"write_secret_missing",message:"OBRA_LICENSE_CENTER_WRITE_SECRET não configurado."},503);
   if(!allowedInternalTarget(targetPath))return json({error:"write_target_not_allowed"},404);
+
+  let snapshot;
+  try{
+    snapshot=await fetchLicenseCenterSnapshot(env);
+  }catch(error){
+    return json({error:"license_center_unavailable",message:error?.message||"Não foi possível validar a paridade administrativa antes da escrita."},Number(error?.statusCode||503));
+  }
+  if(snapshot?.parity?.status==="incomplete"){
+    return json({error:"admin_parity_incomplete",missing:snapshot.parity.missing||[]},409);
+  }
+
   const headers=new Headers({"content-type":"application/json","x-artisys-license-center-write-secret":secret});
   const qaRun=String(request.headers.get("x-artisys-qa-run")||"").trim();
   if(qaRun)headers.set("x-artisys-qa-run",qaRun);
