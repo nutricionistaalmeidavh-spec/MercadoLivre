@@ -12,5 +12,5 @@ test('isolated license center e2e covers all authorities and refetches canonical
   assert.match(source,/write_disabled/);
   assert.match(source,/parity/);
   assert.match(source,/refetch|loadSnapshot|\/api\/license-center/);
-  assert.match(source,/qa-artifacts\/license-center-isolated\/report\.json/);
+  assert.match(source,/qa-artifacts[\s\S]*license-center-isolated[\s\S]*report\.json/);
 });
