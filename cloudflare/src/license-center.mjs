@@ -12,11 +12,21 @@ const INTERNAL_WRITE_PATTERNS=[
   /^\/api\/internal\/license-center\/obra\/companies\/[^/]+$/,
   /^\/api\/internal\/license-center\/obra\/devices\/[^/]+$/,
   /^\/api\/internal\/license-center\/debora\/license$/,
+  /^\/api\/internal\/license-center\/debora\/manual-sales\/classify$/,
   /^\/api\/internal\/license-center\/loja-online\/companies$/,
   /^\/api\/internal\/license-center\/loja-online\/companies\/[^/]+\/(license|extend|block|unblock)$/
 ];
+const INTERNAL_READ_PATTERNS=[
+  /^\/api\/internal\/license-center\/debora\/observability\/summary$/,
+  /^\/api\/internal\/license-center\/debora\/observability\/users$/,
+  /^\/api\/internal\/license-center\/debora\/observability\/sales$/,
+  /^\/api\/internal\/license-center\/debora\/observability\/users\/[^/]+\/sessions$/,
+  /^\/api\/internal\/license-center\/debora\/manual-sales$/,
+  /^\/api\/internal\/license-center\/debora\/manual-sales\/summary$/
+];
 
 function allowedInternalTarget(path){return INTERNAL_WRITE_PATTERNS.some(pattern=>pattern.test(path));}
+function allowedInternalReadTarget(path){return INTERNAL_READ_PATTERNS.some(pattern=>pattern.test(path));}
 
 export async function fetchLicenseCenterSnapshot(env) {
   const binding = env.OBRA_LICENSING;
@@ -36,6 +46,19 @@ export async function fetchLicenseCenterSnapshot(env) {
     throw error;
   }
   return {...payload,parity:compareCapabilities(payload?.adminParity?.requiredCapabilities||[])};
+}
+
+export async function proxyLicenseCenterRead(request,env,targetPath){
+  const binding=env.OBRA_LICENSING;
+  const secret=String(env.OBRA_LICENSE_CENTER_READ_SECRET||"").trim();
+  if(request.method!=="GET")return json({error:"method_not_allowed"},405);
+  if(!binding?.fetch)return json({error:"license_center_unavailable",message:"OBRA_LICENSING não configurado."},503);
+  if(!secret)return json({error:"read_secret_missing",message:"OBRA_LICENSE_CENTER_READ_SECRET não configurado."},503);
+  const target=new URL(`https://obra.internal${targetPath}`);
+  if(!allowedInternalReadTarget(target.pathname))return json({error:"read_target_not_allowed"},404);
+  const upstream=await binding.fetch(new Request(target,{method:"GET",headers:{"x-artisys-license-center-secret":secret}}));
+  const payload=await upstream.json().catch(()=>({}));
+  return json(payload,upstream.status);
 }
 
 export async function proxyLicenseCenterWrite(request,env,targetPath){
