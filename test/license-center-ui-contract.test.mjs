@@ -10,6 +10,7 @@ test('license center exposes administrative actions and mandatory refetch',()=>{
   assert.match(html,/id="deboraLicenseForm"/);
   assert.match(html,/id="lojaCreateForm"/);
   assert.match(html,/src="\/license-center\.js"/);
+  assert.match(script,/parityComplete:false/);
   assert.match(script,/async function mutate/);
   assert.match(script,/await load\(\)/);
   assert.match(script,/\/api\/license-center\/obra\/companies/);
