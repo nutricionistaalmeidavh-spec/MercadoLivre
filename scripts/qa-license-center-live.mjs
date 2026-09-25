@@ -4,6 +4,8 @@ import crypto from 'node:crypto';
 import { chromium } from 'playwright';
 
 const CONFIRM='I_UNDERSTAND_THIS_WRITES_QA_RECORDS';
+const SNAPSHOT_VERIFY_ATTEMPTS=10;
+const SNAPSHOT_VERIFY_DELAY_MS=300;
 if(process.env.LICENSE_CENTER_LIVE_CONFIRM!==CONFIRM)throw new Error(`Refusing live QA. Set LICENSE_CENTER_LIVE_CONFIRM=${CONFIRM}`);
 const panelBase=String(process.env.LICENSE_CENTER_PANEL_URL||'').replace(/\/$/,'');
 const authorityBase=String(process.env.LICENSE_CENTER_AUTHORITY_URL||'').replace(/\/$/,'');
@@ -82,10 +84,18 @@ async function panelWrite(pathname,method,payload,targetId=null){
   const response=await context.request.fetch(`${panelBase}${pathname}`,{method,headers:{'x-artisys-qa-run':qaRunId,'content-type':'application/json'},data:payload||{}});
   const data=await response.json().catch(()=>({}));if(!response.ok())throw new Error(`write_failed:${method}:${pathname}:${response.status()}:${data.message||data.error||''}`);return data;
 }
-async function verifyBoth(label,predicate){
-  const [panel,authority]=await Promise.all([panelSnapshot(),authoritySnapshot()]);
-  assert(predicate(panel),`${label}:panel_mismatch`);assert(predicate(authority),`${label}:authority_mismatch`);checks.push({label,status:'passed'});return{panel,authority};
+async function verifyBothEventually(label,predicate){
+  let panel=null,authority=null,panelOk=false,authorityOk=false;
+  for(let attempt=1;attempt<=SNAPSHOT_VERIFY_ATTEMPTS;attempt++){
+    [panel,authority]=await Promise.all([panelSnapshot(),authoritySnapshot()]);
+    panelOk=Boolean(predicate(panel));authorityOk=Boolean(predicate(authority));
+    if(panelOk&&authorityOk){checks.push({label,status:'passed',attempts:attempt});return{panel,authority};}
+    if(attempt<SNAPSHOT_VERIFY_ATTEMPTS)await new Promise(resolve=>setTimeout(resolve,SNAPSHOT_VERIFY_DELAY_MS));
+  }
+  if(!panelOk)throw new Error(`${label}:panel_mismatch`);
+  throw new Error(`${label}:authority_mismatch`);
 }
+async function verifyBoth(label,predicate){return verifyBothEventually(label,predicate)}
 function addCreated(id){const key=String(id||'');assert(key&&!baselineIds.has(key),`created_id_collides_with_baseline:${key}`);createdIds.add(key);return key}
 
 async function login(){
@@ -134,7 +144,7 @@ async function runLoja(){
   let authority=await authoritySnapshot(),created=findLojaByIdentity(authority);assert(created?.company?.id&&created.license?.id,'loja_create_missing_from_authority');lojaId=addCreated(created.company.id);lojaLicenseId=addCreated(created.license.id);
   await verifyBoth('loja-create',snap=>{const row=findLoja(snap);return row?.company?.name===lojaName&&row?.admin?.email===qaEmail&&row?.license?.id===lojaLicenseId&&row?.accessStatus==='ACTIVE'});
   await panelWrite(`/api/license-center/loja-online/companies/${encodeURIComponent(lojaId)}/license`,'PUT',{plan:'QA_E2E',maxUsers:7},lojaId);await verifyBoth('loja-update',snap=>{const row=findLoja(snap);return row?.license?.plan==='QA_E2E'&&row?.license?.maxUsers===7});
-  const before=Date.parse(findLoja(await authoritySnapshot())?.license?.expiresAt||'');await panelWrite(`/api/license-center/loja-online/companies/${encodeURIComponent(lojaId)}/extend`,'POST',{months:6},lojaId);await verifyBoth('loja-extend',snap=>Date.parse(findLoja(snap)?.license?.expiresAt||'')>before);
+  const before=Date.parse(findLoja(await authoritySnapshot())?.license?.expiresAt||'');await panelWrite(`/api/license-center/loja-online/companies/${encodeURIComponent(lojaId)}/extend`,'POST',{months:6},lojaId);await verifyBothEventually('loja-extend',snap=>Date.parse(findLoja(snap)?.license?.expiresAt||'')>before);
   await panelWrite(`/api/license-center/loja-online/companies/${encodeURIComponent(lojaId)}/block`,'POST',{reason:`QA ${qaRunId}`},lojaId);await verifyBoth('loja-block',snap=>findLoja(snap)?.accessStatus==='BLOCKED');
   await panelWrite(`/api/license-center/loja-online/companies/${encodeURIComponent(lojaId)}/unblock`,'POST',{},lojaId);await verifyBoth('loja-unblock',snap=>findLoja(snap)?.accessStatus==='ACTIVE');
   authority=await authoritySnapshot();assert((authority.lojaOnline?.events||[]).some(event=>event.companyId===lojaId),'loja_audit_missing');checks.push({label:'loja-audit',status:'passed'});
