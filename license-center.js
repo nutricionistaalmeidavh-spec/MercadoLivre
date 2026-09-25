@@ -1,4 +1,4 @@
-const state={snapshot:null,parityComplete:true};
+const state={snapshot:null,parityComplete:false};
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmtDate=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR')};
 const list=value=>Array.isArray(value)&&value.length?value.map(esc).join(', '):'—';
