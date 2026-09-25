@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "artisys-mercadolivre",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "7cf735ee-b7cc-4231-abe4-3c34f2896ccb",
       "migrations_dir": "./migrations"
     }
   ],
