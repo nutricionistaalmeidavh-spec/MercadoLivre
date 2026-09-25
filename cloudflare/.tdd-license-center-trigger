@@ -1,1 +1,1 @@
-This file exists only to make the existing pull_request path filter execute the failing license-center tests before implementation.
+TDD trigger 2: administrative UI contract must fail before license-center.js exists.
