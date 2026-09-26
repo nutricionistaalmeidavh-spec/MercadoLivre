@@ -13,6 +13,8 @@ const INTERNAL_WRITE_PATTERNS=[
   /^\/api\/internal\/license-center\/obra\/devices\/[^/]+$/,
   /^\/api\/internal\/license-center\/debora\/license$/,
   /^\/api\/internal\/license-center\/debora\/manual-sales\/classify$/,
+  /^\/api\/internal\/license-center\/debora\/partners$/,
+  /^\/api\/internal\/license-center\/debora\/partner-commission$/,
   /^\/api\/internal\/license-center\/loja-online\/companies$/,
   /^\/api\/internal\/license-center\/loja-online\/companies\/[^/]+\/(license|extend|block|unblock)$/
 ];
@@ -22,7 +24,9 @@ const INTERNAL_READ_PATTERNS=[
   /^\/api\/internal\/license-center\/debora\/observability\/sales$/,
   /^\/api\/internal\/license-center\/debora\/observability\/users\/[^/]+\/sessions$/,
   /^\/api\/internal\/license-center\/debora\/manual-sales$/,
-  /^\/api\/internal\/license-center\/debora\/manual-sales\/summary$/
+  /^\/api\/internal\/license-center\/debora\/manual-sales\/summary$/,
+  /^\/api\/internal\/license-center\/debora\/partners$/,
+  /^\/api\/internal\/license-center\/debora\/partner-sales$/
 ];
 
 function allowedInternalTarget(path){return INTERNAL_WRITE_PATTERNS.some(pattern=>pattern.test(path));}
