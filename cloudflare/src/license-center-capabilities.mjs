@@ -6,6 +6,7 @@ export const SUPPORTED_LICENSE_CENTER_CAPABILITIES=new Set([
   'debora.license.manage',
   'debora.observability.read',
   'debora.manual-sales.manage',
+  'debora.partners.manage',
   'owner.license.audit',
   'loja-online.company.read',
   'loja-online.company.create',
