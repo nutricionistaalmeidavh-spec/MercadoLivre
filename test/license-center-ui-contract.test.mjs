@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('license center exposes administrative actions, Debora observability and mandatory refetch',()=>{
+test('license center exposes administrative actions, Debora observability, partners and mandatory refetch',()=>{
   const html=fs.readFileSync('license-center.html','utf8');
   const script=fs.readFileSync('license-center.js','utf8');
   const assets=fs.readFileSync('.assetsignore','utf8');
@@ -16,6 +16,11 @@ test('license center exposes administrative actions, Debora observability and ma
   assert.match(html,/id="deboraUsersTable"/);
   assert.match(html,/id="deboraSalesTable"/);
   assert.match(html,/id="deboraActivity"/);
+  assert.match(html,/id="deboraPartnerForm"/);
+  assert.match(html,/name="discountType"/);
+  assert.match(html,/name="discountValue"/);
+  assert.match(html,/id="deboraPartnersTable"/);
+  assert.match(html,/id="deboraPartnerSalesTable"/);
   assert.match(html,/id="lojaCreateForm"/);
   assert.match(html,/src="\/license-center\.js"/);
   assert.match(script,/parityComplete:false/);
@@ -27,6 +32,9 @@ test('license center exposes administrative actions, Debora observability and ma
   assert.match(script,/\/api\/license-center\/debora\/observability\/users/);
   assert.match(script,/\/api\/license-center\/debora\/observability\/sales/);
   assert.match(script,/\/api\/license-center\/debora\/manual-sales\/classify/);
+  assert.match(script,/\/api\/license-center\/debora\/partners/);
+  assert.match(script,/\/api\/license-center\/debora\/partner-sales/);
+  assert.match(script,/\/api\/license-center\/debora\/partner-commission/);
   assert.match(script,/\/api\/license-center\/loja-online\/companies/);
   assert.match(script,/parity.*missing|missing.*parity/s);
   assert.match(assets,/!license-center\.js/);
