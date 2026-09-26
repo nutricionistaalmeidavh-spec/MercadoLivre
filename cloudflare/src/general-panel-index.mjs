@@ -60,6 +60,8 @@ export function licenseCenterWriteTarget(pathname,method){
   if(match&&method==="PUT")return `/api/internal/license-center/obra/devices/${encodeURIComponent(decodeURIComponent(match[1]))}`;
   if(pathname==="/api/license-center/debora/license"&&method==="POST")return "/api/internal/license-center/debora/license";
   if(pathname==="/api/license-center/debora/manual-sales/classify"&&method==="POST")return "/api/internal/license-center/debora/manual-sales/classify";
+  if(pathname==="/api/license-center/debora/partners"&&method==="POST")return "/api/internal/license-center/debora/partners";
+  if(pathname==="/api/license-center/debora/partner-commission"&&method==="POST")return "/api/internal/license-center/debora/partner-commission";
   if(pathname==="/api/license-center/loja-online/companies"&&method==="POST")return "/api/internal/license-center/loja-online/companies";
   match=pathname.match(/^\/api\/license-center\/loja-online\/companies\/([^/]+)\/(license|extend|block|unblock)$/);
   if(match&&((match[2]==="license"&&method==="PUT")||(match[2]!=="license"&&method==="POST")))return `/api/internal/license-center/loja-online/companies/${encodeURIComponent(decodeURIComponent(match[1]))}/${match[2]}`;
@@ -73,7 +75,9 @@ export function licenseCenterReadTarget(pathname,method,search=""){
     ["/api/license-center/debora/observability/users","/api/internal/license-center/debora/observability/users"],
     ["/api/license-center/debora/observability/sales","/api/internal/license-center/debora/observability/sales"],
     ["/api/license-center/debora/manual-sales","/api/internal/license-center/debora/manual-sales"],
-    ["/api/license-center/debora/manual-sales/summary","/api/internal/license-center/debora/manual-sales/summary"]
+    ["/api/license-center/debora/manual-sales/summary","/api/internal/license-center/debora/manual-sales/summary"],
+    ["/api/license-center/debora/partners","/api/internal/license-center/debora/partners"],
+    ["/api/license-center/debora/partner-sales","/api/internal/license-center/debora/partner-sales"]
   ]);
   const target=direct.get(pathname);
   if(target)return `${target}${search}`;
