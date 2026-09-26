@@ -1,7 +1,8 @@
 const state={
   snapshot:null,parityComplete:false,
   deboraUsers:{cursor:null,stack:[],next:null,hasMore:false},
-  deboraSales:{cursor:null,stack:[],next:null,hasMore:false}
+  deboraSales:{cursor:null,stack:[],next:null,hasMore:false},
+  deboraPartners:[]
 };
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmtDate=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR')};
@@ -12,6 +13,7 @@ const csv=value=>String(value||'').split(',').map(item=>item.trim()).filter(Bool
 const channelLabel=value=>({mercado_livre:'Mercado Livre',mercado_livre_manual:'Manual legado',direct_sale:'Venda direta',shopee:'Shopee',gumroad:'Gumroad',courtesy:'Cortesia',partnership:'Parceria',other:'Outro',asaas:'Asaas',cadastro:'Cadastro'}[String(value||'')]||String(value||'—'));
 const paymentLabel=value=>({paid:'Pago',pending:'Pendente',unpaid:'Não pago',not_applicable:'Não se aplica',unknown:'Não informado',active:'Ativo',past_due:'Em atraso',cancelled:'Cancelado',expired:'Expirado',failed:'Falhou',checkout_created:'Checkout criado'}[String(value||'')]||String(value||'—'));
 const planLabel=value=>({pro_monthly:'Pro mensal',pro_annual:'Pro anual',pro_6m:'Pro 6 meses',freemium:'Freemium'}[String(value||'')]||String(value||'Freemium'));
+const partnerRule=(type,value)=>type==='percent'?`${Number(value||0)}%`:type==='fixed'?fmtMoney(Number(value||0)*100):'—';
 
 function brlToCents(value){
   const text=String(value??'').trim();if(!text)return null;
@@ -154,6 +156,45 @@ async function loadDeboraActivity(userId){
   }catch(error){target.innerHTML=`<div class="warning">Atividade indisponível: ${esc(error.message)}</div>`}
 }
 
+function resetDeboraPartnerForm(){
+  const form=document.getElementById('deboraPartnerForm');if(!form)return;form.reset();
+  form.elements.namedItem('id').value='';form.elements.namedItem('commissionValue').value='0';form.elements.namedItem('discountValue').value='0';form.elements.namedItem('active').checked=true;
+}
+function renderDeboraPartners(payload){
+  state.deboraPartners=payload?.partners||[];
+  table('deboraPartnersTable',[
+    {label:'Parceiro',render:r=>`<strong>${esc(r.name||'—')}</strong><div class="muted">${esc(r.partner_type||'partner')}</div>`},
+    {label:'Código',render:r=>`<strong>${esc(r.code||'—')}</strong>`},
+    {label:'Desconto',render:r=>esc(partnerRule(r.discount_type,r.discount_value))},
+    {label:'Comissão',render:r=>esc(partnerRule(r.commission_type,r.commission_value))},
+    {label:'Status',render:r=>pill(Number(r.active)===1||r.active===true?'Ativo':'Inativo')},
+    {label:'Ações',render:r=>button('Editar','debora-partner-edit',r.id)}
+  ],state.deboraPartners);
+  applyParity(state.snapshot||{});
+}
+function renderDeboraPartnerSales(payload){
+  const summary=payload?.summary||{};
+  document.getElementById('deboraPartnerSummary').innerHTML=`Vendas pagas: <strong>${esc(summary.paidSales||0)}</strong> · Receita atribuída: <strong>${esc(fmtMoney(summary.revenueCents||0))}</strong> · Descontos: <strong>${esc(fmtMoney(summary.discountCents||0))}</strong> · Comissão pendente: <strong>${esc(fmtMoney(summary.pendingCommissionCents||0))}</strong>`;
+  table('deboraPartnerSalesTable',[
+    {label:'Data',render:r=>fmtDate(r.created_at)},
+    {label:'Parceiro',render:r=>esc(r.partners?.name||r.partner_code_snapshot||'—')},
+    {label:'Plano',render:r=>esc(planLabel(r.plan_code))},
+    {label:'Total',render:r=>esc(fmtMoney(r.total_cents))},
+    {label:'Desconto',render:r=>esc(fmtMoney(r.discount_cents))},
+    {label:'Comissão',render:r=>esc(fmtMoney(r.commission_cents))},
+    {label:'Status',render:r=>`${pill(r.status)} <span class="muted">${esc(r.commission_status||'—')}</span>`},
+    {label:'Ações',render:r=>r.status==='paid'&&r.commission_status==='pending'?button('Aprovar comissão','debora-commission-approve',r.id):'—'}
+  ],payload?.sales||[]);
+  applyParity(state.snapshot||{});
+}
+async function loadDeboraPartners(){
+  const status=document.getElementById('deboraPartnersStatus');if(status)status.textContent='Carregando parceiros e vendas atribuídas…';
+  try{
+    const [partners,sales]=await Promise.all([api('/api/license-center/debora/partners'),api('/api/license-center/debora/partner-sales')]);
+    renderDeboraPartners(partners);renderDeboraPartnerSales(sales);if(status){status.textContent='Parceiros, cupons e vendas atribuídas atualizados.';status.classList.remove('warning')}
+  }catch(error){if(status){status.textContent=`Parceiros/cupons indisponíveis: ${error.message}`;status.classList.add('warning')}console.warn('debora_partners_unavailable',error)}
+}
+
 async function load(){
   try{
     const data=await api('/api/license-center');state.snapshot=data;
@@ -166,6 +207,7 @@ async function load(){
     document.getElementById('generatedAt').textContent=`Snapshot gerado em ${fmtDate(data.generatedAt)} · contrato administrativo v${esc(data.adminParity?.contractVersion??'—')}.`;
     setStatus(state.parityComplete?'Dados sincronizados com a autoridade atual de licenças.':'Dados carregados, mas escrita bloqueada por paridade incompleta.',!state.parityComplete);
     void loadDeboraObservability();
+    void loadDeboraPartners();
   }catch(error){setStatus(`Não foi possível carregar a central: ${error.message}`,true)}
 }
 
@@ -186,6 +228,14 @@ function wireForms(){
       await mutate('/api/license-center/debora/license','POST',payload,action==='grant'?'Licença Débora liberada/renovada e venda registrada.':'Licença Débora revogada e confirmada.');
     }catch(error){setStatus(error.message,true)}
   });
+  const partnerForm=document.getElementById('deboraPartnerForm');
+  partnerForm.addEventListener('submit',async event=>{
+    event.preventDefault();const values=new FormData(partnerForm);const payload={
+      id:String(values.get('id')||'')||undefined,name:String(values.get('name')||'').trim(),code:String(values.get('code')||'').trim().toUpperCase(),partnerType:String(values.get('partnerType')||'partner'),commissionType:String(values.get('commissionType')||'none'),commissionValue:Number(values.get('commissionValue')||0),discountType:String(values.get('discountType')||'none'),discountValue:Number(values.get('discountValue')||0),active:Boolean(values.get('active'))
+    };
+    try{await mutate('/api/license-center/debora/partners','POST',payload,'Parceiro/cupom salvo na autoridade da Débora.');resetDeboraPartnerForm();await loadDeboraPartners()}catch(error){setStatus(error.message,true)}
+  });
+  document.getElementById('deboraPartnerReset').addEventListener('click',resetDeboraPartnerForm);
   document.getElementById('lojaCreateForm').addEventListener('submit',async event=>{
     event.preventDefault();const form=new FormData(event.currentTarget);const payload={companyName:form.get('companyName'),adminName:form.get('adminName'),adminEmail:form.get('adminEmail'),months:Number(form.get('months')),maxUsers:Number(form.get('maxUsers')),plan:form.get('plan')};
     try{await mutate('/api/license-center/loja-online/companies','POST',payload,'Loja criada e confirmada.');event.currentTarget.reset()}catch(error){setStatus(error.message,true)}
@@ -227,6 +277,13 @@ async function handleAction(button){
     if(action==='debora-activity')return await loadDeboraActivity(id);
     if(action==='debora-classify'){
       const sale=promptManualSale();if(!sale)return;return await mutate('/api/license-center/debora/manual-sales/classify','POST',{email:id,sale},'Venda manual antiga classificada e confirmada.');
+    }
+    if(action==='debora-partner-edit'){
+      const partner=state.deboraPartners.find(item=>item.id===id),form=document.getElementById('deboraPartnerForm');if(!partner||!form)return;
+      form.elements.namedItem('id').value=partner.id;form.elements.namedItem('name').value=partner.name||'';form.elements.namedItem('code').value=partner.code||'';form.elements.namedItem('partnerType').value=partner.partner_type||'partner';form.elements.namedItem('commissionType').value=partner.commission_type||'none';form.elements.namedItem('commissionValue').value=String(partner.commission_value??0);form.elements.namedItem('discountType').value=partner.discount_type||'none';form.elements.namedItem('discountValue').value=String(partner.discount_value??0);form.elements.namedItem('active').checked=Number(partner.active)===1||partner.active===true;form.scrollIntoView({behavior:'smooth',block:'center'});setStatus(`Editando parceiro/cupom ${partner.code}.`);return;
+    }
+    if(action==='debora-commission-approve'){
+      if(!confirm('Aprovar esta comissão da parceira?'))return;await mutate('/api/license-center/debora/partner-commission','POST',{attributionId:id},'Comissão aprovada na autoridade da Débora.');return await loadDeboraPartners();
     }
     if(action==='loja-edit'&&loja){const plan=prompt('Plano',loja.license?.plan||'6_MONTHS');if(plan===null)return;const maxUsers=prompt('Máximo de usuários',String(loja.license?.maxUsers||5));if(maxUsers===null)return;const expiresAt=prompt('Validade ISO/data',loja.license?.expiresAt||'');if(expiresAt===null)return;return await mutate(`/api/license-center/loja-online/companies/${encodeURIComponent(id)}/license`,'PUT',{plan,maxUsers:Number(maxUsers),expiresAt:expiresAt||null},'Licença da Loja atualizada e confirmada.');}
     if(action==='loja-extend'){const months=Number(prompt('Estender por quantos meses? 1, 3, 6 ou 12','6'));if(![1,3,6,12].includes(months))throw new Error('Extensão deve ser 1, 3, 6 ou 12 meses.');return await mutate(`/api/license-center/loja-online/companies/${encodeURIComponent(id)}/extend`,'POST',{months},'Validade da Loja estendida e confirmada.');}
