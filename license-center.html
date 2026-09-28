@@ -6,116 +6,156 @@
 <meta name="robots" content="noindex,nofollow">
 <title>ArtiSys — Central de Licenças</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#10231a;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}.shell{max-width:1240px;margin:0 auto;padding:24px 18px 48px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}.top a{color:#17683f;text-decoration:none;font-weight:700}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#5e7066}.title{margin:4px 0 0;font-size:30px}.lead{margin:8px 0 0;color:#5e7066}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:6px 10px;background:#e8f5ed;color:#17683f;font-size:12px;font-weight:800}.status,.parity{margin:14px 0;padding:12px 14px;border-radius:12px;background:white;border:1px solid #dce6df;color:#516159}.status.error,.parity{border-color:#efc9c9;color:#8b2525;background:#fff7f7}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.card,.panel{background:#fff;border:1px solid #dce6df;border-radius:16px;box-shadow:0 4px 18px rgba(16,35,26,.04)}.card{padding:16px}.card strong{display:block;font-size:26px;margin-top:6px}.panel{padding:18px;margin-top:16px}.panel h2{margin:0 0 4px;font-size:20px}.panel h3{margin:20px 0 6px;font-size:17px}.panel p{margin:0 0 14px;color:#66766e}.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 18px;padding:14px;background:#f8faf9;border:1px solid #e3eae6;border-radius:12px}.form-grid label{font-size:12px;font-weight:700;color:#526159}.form-grid input,.form-grid select{width:100%;margin-top:5px;padding:9px 10px;border:1px solid #cad8d0;border-radius:9px;background:white}.form-grid input[type="checkbox"]{width:auto;margin-right:6px}.form-actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.btn{border:1px solid #cbd8d0;background:white;color:#234b37;border-radius:9px;padding:7px 10px;font-weight:700;cursor:pointer}.btn.primary{background:#17683f;color:white;border-color:#17683f}.btn.danger{color:#8b2525;border-color:#e1bcbc}.btn:disabled{opacity:.45;cursor:not-allowed}.table-wrap{overflow:auto;border:1px solid #e3eae6;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:980px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #edf1ef;font-size:13px;vertical-align:top}th{background:#f8faf9;color:#526159;font-size:11px;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.pill{display:inline-flex;border-radius:999px;padding:3px 8px;background:#eef3f0;font-size:11px;font-weight:800}.muted{color:#75837c}.empty{padding:18px;color:#75837c}.warning{color:#955e12}.footer{margin-top:18px;color:#75837c;font-size:12px}.device-row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px}.subpanel{margin-top:18px;padding-top:18px;border-top:1px solid #e3eae6}.metric-grid{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin:12px 0 16px}.metric{padding:12px;border:1px solid #e3eae6;border-radius:12px;background:#f8faf9}.metric span{display:block;font-size:11px;color:#66766e}.metric strong{display:block;font-size:20px;margin-top:4px}.pager{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.activity{margin-top:12px;padding:12px;border-radius:12px;background:#f8faf9;border:1px solid #e3eae6}@media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.top{align-items:flex-start;flex-direction:column}.title{font-size:26px}}@media(max-width:560px){.cards,.form-grid,.metric-grid{grid-template-columns:1fr}}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#10231a;background:#f4f7f5}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0}.shell{max-width:1240px;margin:0 auto;padding:16px 14px 40px}.top{display:flex;flex-direction:column;gap:14px;margin-bottom:16px}.top a,.breadcrumbs a,.section-nav a,.card{color:#17683f;text-decoration:none;font-weight:700}.breadcrumbs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;color:#75837c}.breadcrumbs .current{color:#526159;font-weight:700}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#5e7066}.title{margin:5px 0 0;font-size:27px;line-height:1.1}.lead{margin:8px 0 0;color:#5e7066;line-height:1.45}.badge{display:inline-flex;align-items:center;align-self:flex-start;border-radius:999px;padding:6px 10px;background:#e8f5ed;color:#17683f;font-size:12px;font-weight:800}.status,.parity{margin:12px 0;padding:12px 14px;border-radius:12px;background:white;border:1px solid #dce6df;color:#516159}.status.error,.parity{border-color:#efc9c9;color:#8b2525;background:#fff7f7}.section-nav{margin:16px 0}.section-nav-title{display:block;margin-bottom:8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#66766e}.section-nav-links{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 5px;scrollbar-width:none}.section-nav-links::-webkit-scrollbar{display:none}.section-nav a{white-space:nowrap;border:1px solid #dce6df;background:#fff;border-radius:999px;padding:9px 12px;font-size:13px}.cards{display:grid;grid-template-columns:1fr;gap:10px;margin:14px 0 18px}.card,.panel{background:#fff;border:1px solid #dce6df;border-radius:16px;box-shadow:0 4px 18px rgba(16,35,26,.04)}.card{display:block;padding:15px;color:#10231a}.card:hover,.card:focus-visible{border-color:#afc8ba;outline:none}.card strong{display:block;font-size:25px;margin-top:5px}.card .muted{font-weight:500}.panel{margin-top:12px;overflow:hidden}.product-panel>summary{list-style:none;cursor:pointer}.product-panel>summary::-webkit-details-marker,.action-panel>summary::-webkit-details-marker{display:none}.product-summary{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 48px 17px 17px}.product-summary::after{content:'+';position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1;color:#17683f}.product-panel[open]>.product-summary::after{content:'−'}.product-panel[open]>.product-summary{border-bottom:1px solid #e3eae6}.product-summary-main{min-width:0}.product-summary h2{margin:0;font-size:20px}.product-summary p{margin:4px 0 0;color:#66766e;font-weight:500;line-height:1.35}.product-summary-meta{font-size:12px;color:#75837c;font-weight:700}.panel-body{padding:16px}.panel h3{margin:20px 0 6px;font-size:17px}.panel p{margin:0 0 14px;color:#66766e}.action-panel{margin:0 0 16px;border:1px solid #dce6df;border-radius:13px;background:#fbfcfb;overflow:hidden}.action-panel>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;font-weight:800;color:#234b37}.action-panel>summary::after{content:'+';font-size:20px;color:#17683f}.action-panel[open]>summary::after{content:'−'}.action-panel[open]>summary{border-bottom:1px solid #e3eae6}.action-panel .form-grid{margin:0;border:0;border-radius:0}.form-grid{display:grid;grid-template-columns:1fr;gap:10px;margin:14px 0 18px;padding:14px;background:#f8faf9;border:1px solid #e3eae6;border-radius:12px}.form-grid label{font-size:12px;font-weight:700;color:#526159}.form-grid input,.form-grid select{width:100%;margin-top:5px;padding:11px 12px;border:1px solid #cad8d0;border-radius:9px;background:white;font:inherit;min-height:44px}.form-grid input[type="checkbox"]{width:auto;min-height:auto;margin-right:6px}.form-actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.btn{border:1px solid #cbd8d0;background:white;color:#234b37;border-radius:9px;padding:10px 12px;font-weight:700;cursor:pointer;min-height:42px}.btn.primary{background:#17683f;color:white;border-color:#17683f}.btn.danger{color:#8b2525;border-color:#e1bcbc}.btn:disabled{opacity:.45;cursor:not-allowed}.table-wrap{overflow:auto;border:1px solid #e3eae6;border-radius:12px}.desktop-table{display:none}table{width:100%;border-collapse:collapse;min-width:980px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #edf1ef;font-size:13px;vertical-align:top}th{background:#f8faf9;color:#526159;font-size:11px;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.mobile-records{display:grid;gap:10px}.mobile-record{border:1px solid #e3eae6;border-radius:12px;background:#fff;overflow:hidden}.mobile-field{display:grid;grid-template-columns:minmax(88px,.72fr) minmax(0,1.28fr);gap:10px;padding:10px 12px;border-bottom:1px solid #edf1ef;align-items:start}.mobile-field:last-child{border-bottom:0}.mobile-label{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#66766e}.mobile-value{min-width:0;overflow-wrap:anywhere}.mobile-value .btn{margin:2px 4px 2px 0}.pill{display:inline-flex;border-radius:999px;padding:3px 8px;background:#eef3f0;font-size:11px;font-weight:800}.muted{color:#75837c}.empty{padding:18px;color:#75837c}.warning{color:#955e12}.footer{margin-top:18px;color:#75837c;font-size:12px}.device-row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px}.subpanel{margin-top:18px;padding-top:18px;border-top:1px solid #e3eae6}.metric-grid{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 16px}.metric{padding:13px;border:1px solid #e3eae6;border-radius:12px;background:#f8faf9}.metric span{display:block;font-size:11px;color:#66766e}.metric strong{display:block;font-size:20px;margin-top:4px}.pager{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.activity{margin-top:12px;padding:12px;border-radius:12px;background:#f8faf9;border:1px solid #e3eae6}.anchor-target{scroll-margin-top:12px}
+@media(min-width:560px){.shell{padding:20px 18px 44px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.product-summary{padding:18px 52px 18px 18px}.panel-body{padding:18px}}
+@media(min-width:701px){.desktop-table{display:block}.mobile-records{display:none}.mobile-field{display:block}.section-nav-links{flex-wrap:wrap;overflow:visible}}
+@media(min-width:900px){.shell{padding:24px 18px 48px}.top{align-items:center;justify-content:space-between;flex-direction:row}.title{font-size:30px}.badge{align-self:auto}.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.form-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.metric-grid{grid-template-columns:repeat(5,minmax(120px,1fr))}.panel{margin-top:16px}}
 </style>
 </head>
 <body>
 <main class="shell">
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="/admin?view=mais">← Voltar ao painel</a><span aria-hidden="true">/</span><span class="current">Central de Licenças</span>
+  </nav>
+
   <div class="top">
-    <div><a href="/admin?view=mais">← Voltar ao painel</a><div class="eyebrow" style="margin-top:14px">ArtiSys</div><h1 class="title">Central de Licenças</h1><p class="lead">Administração unificada usando as autoridades de licenciamento existentes.</p></div>
+    <div><div class="eyebrow">ArtiSys</div><h1 class="title">Central de Licenças</h1><p class="lead">Administração unificada usando as autoridades de licenciamento existentes.</p></div>
     <span class="badge">Painel administrativo</span>
   </div>
   <div id="status" class="status">Carregando dados da autoridade de licenças…</div>
   <div id="parity" class="parity" hidden></div>
 
-  <section class="cards">
-    <div class="card"><span class="eyebrow">Obra na Mão</span><strong id="obraCount">—</strong><span class="muted">empresas/licenças</span></div>
-    <div class="card"><span class="eyebrow">Débora Lactação</span><strong id="deboraCount">—</strong><span class="muted">clientes comerciais</span></div>
-    <div class="card"><span class="eyebrow">Loja Online</span><strong id="lojaCount">—</strong><span class="muted">clientes</span></div>
-    <div class="card"><span class="eyebrow">Auditoria</span><strong id="auditCount">—</strong><span class="muted">eventos recentes</span></div>
-  </section>
-
-  <section class="panel">
-    <h2>Obra na Mão</h2><p>Crie empresas e administre plano, validade, módulos, canais, limites, status e computadores.</p>
-    <form id="obraCreateForm" class="form-grid">
-      <label>Empresa<input name="name" required></label>
-      <label>E-mail admin<input name="adminEmail" type="email" required></label>
-      <label>Plano<input name="plan" value="custom" required></label>
-      <label>Validade<input name="expiresAt" type="date"></label>
-      <label>Máx. usuários<input name="maxUsers" type="number" min="1" value="10" required></label>
-      <label>Máx. projetos<input name="maxProjects" type="number" min="1" value="5" required></label>
-      <label>Máx. dispositivos<input name="maxDevices" type="number" min="1" value="2" required></label>
-      <label>Módulos (vírgula)<input name="modules" value="obra360" required></label>
-      <label>Canais (vírgula)<input name="channels" value="mobile,desktop" required></label>
-      <div class="form-actions"><button class="btn primary" data-write type="submit">Criar empresa/licença</button></div>
-    </form>
-    <div id="obraTable"></div>
-  </section>
-
-  <section class="panel">
-    <h2>Débora Lactação</h2><p>Licenciamento, atividade, usuários, vendas e parceiros consolidados sem duplicar a autoridade de dados.</p>
-    <form id="deboraLicenseForm" class="form-grid">
-      <label>E-mail<input name="email" type="email" required></label>
-      <label>Origem<select name="acquisitionChannel" required><option value="" selected disabled>Selecione o canal</option><option value="mercado_livre">Mercado Livre</option><option value="direct_sale">Venda direta</option><option value="shopee">Shopee</option><option value="gumroad">Gumroad</option><option value="courtesy">Cortesia</option><option value="partnership">Parceria</option><option value="other">Outro</option></select></label>
-      <label>Pagamento<select name="paymentStatus" required><option value="" selected disabled>Selecione o pagamento</option><option value="paid">Pago</option><option value="pending">Pendente</option><option value="unpaid">Não pago</option><option value="not_applicable">Não se aplica</option></select></label>
-      <label>Valor recebido<input name="amount" inputmode="decimal" placeholder="80,00"></label>
-      <label>Referência do pedido<input name="externalOrderRef" maxlength="160" placeholder="MLB..., pedido, comprovante..."></label>
-      <div class="form-actions">
-        <button class="btn" data-write data-debora-action="status" type="button">Consultar</button>
-        <button class="btn primary" data-write data-debora-action="grant" type="button">Liberar / renovar +6m</button>
-        <button class="btn danger" data-write data-debora-action="revoke" type="button">Revogar</button>
-      </div>
-    </form>
-    <div id="deboraTable"></div>
-
-    <div class="subpanel">
-      <h3>Uso e vendas</h3>
-      <p id="deboraObservabilityStatus" class="muted">Carregando atividade da Débora…</p>
-      <div class="metric-grid">
-        <div class="metric"><span>Online agora</span><strong id="deboraOnline">—</strong></div>
-        <div class="metric"><span>Contas totais</span><strong id="deboraAccounts">—</strong></div>
-        <div class="metric"><span>Pro ativos</span><strong id="deboraPro">—</strong></div>
-        <div class="metric"><span>Vendas pagas</span><strong id="deboraPaidSales">—</strong></div>
-        <div class="metric"><span>Receita realizada</span><strong id="deboraRevenue">—</strong></div>
-      </div>
-      <h3>Usuários</h3>
-      <div id="deboraUsersTable"></div>
-      <div class="pager"><button id="deboraUsersPrev" class="btn" type="button">Anterior</button><button id="deboraUsersNext" class="btn" type="button">Próxima</button></div>
-      <div id="deboraActivity" class="activity" hidden></div>
-      <h3>Vendas</h3>
-      <div id="deboraSalesTable"></div>
-      <div class="pager"><button id="deboraSalesPrev" class="btn" type="button">Anterior</button><button id="deboraSalesNext" class="btn" type="button">Próxima</button></div>
+  <nav class="section-nav" aria-label="Seções da Central de Licenças">
+    <span class="section-nav-title">Ir para</span>
+    <div class="section-nav-links">
+      <a href="#obra-na-mao">Obra na Mão</a>
+      <a href="#debora-lactacao">Débora Lactação</a>
+      <a href="#loja-online">Loja Online</a>
+      <a href="#auditoria">Auditoria</a>
     </div>
+  </nav>
 
-    <div class="subpanel">
-      <h3>Parceiros e cupons</h3>
-      <p id="deboraPartnersStatus" class="muted">Carregando parceiros e vendas atribuídas…</p>
-      <form id="deboraPartnerForm" class="form-grid">
-        <input type="hidden" name="id">
-        <label>Nome<input name="name" required maxlength="160" placeholder="Ana Parceira"></label>
-        <label>Código / cupom<input name="code" required maxlength="64" pattern="[A-Za-z0-9_-]{2,64}" placeholder="ANA15"></label>
-        <label>Tipo<select name="partnerType"><option value="partner">Parceiro</option><option value="influencer">Influenciador</option><option value="campaign">Campanha</option></select></label>
-        <label>Comissão<select name="commissionType"><option value="none">Sem comissão</option><option value="percent">Percentual</option><option value="fixed">Valor fixo</option></select></label>
-        <label>Valor comissão<input name="commissionValue" type="number" min="0" step="0.01" value="0"></label>
-        <label>Desconto<select name="discountType"><option value="none">Sem desconto</option><option value="percent">Percentual</option><option value="fixed">Valor fixo</option></select></label>
-        <label>Valor desconto<input name="discountValue" type="number" min="0" step="0.01" value="0"></label>
-        <label><input name="active" type="checkbox" checked> Código ativo</label>
-        <div class="form-actions"><button class="btn primary" data-write type="submit">Salvar parceiro/cupom</button><button id="deboraPartnerReset" class="btn" type="button">Limpar</button></div>
-      </form>
-      <div id="deboraPartnersTable"></div>
-      <h3>Vendas atribuídas</h3>
-      <div id="deboraPartnerSummary" class="muted"></div>
-      <div id="deboraPartnerSalesTable"></div>
+  <section class="cards" aria-label="Resumo dos produtos">
+    <a class="card" href="#obra-na-mao"><span class="eyebrow">Obra na Mão</span><strong id="obraCount">—</strong><span class="muted">empresas/licenças</span></a>
+    <a class="card" href="#debora-lactacao"><span class="eyebrow">Débora Lactação</span><strong id="deboraCount">—</strong><span class="muted">clientes comerciais</span></a>
+    <a class="card" href="#loja-online"><span class="eyebrow">Loja Online</span><strong id="lojaCount">—</strong><span class="muted">clientes</span></a>
+    <a class="card" href="#auditoria"><span class="eyebrow">Auditoria</span><strong id="auditCount">—</strong><span class="muted">eventos recentes</span></a>
+  </section>
+
+  <details id="obra-na-mao" class="panel product-panel anchor-target">
+    <summary class="product-summary"><span class="product-summary-main"><h2>Obra na Mão</h2><p>Empresas, licenças, limites, módulos, canais e computadores.</p></span><span class="product-summary-meta">Gerenciar</span></summary>
+    <div class="panel-body">
+      <details id="obraCreateDetails" class="action-panel">
+        <summary>+ Nova empresa/licença</summary>
+        <form id="obraCreateForm" class="form-grid">
+          <label>Empresa<input name="name" required></label>
+          <label>E-mail admin<input name="adminEmail" type="email" required></label>
+          <label>Plano<input name="plan" value="custom" required></label>
+          <label>Validade<input name="expiresAt" type="date"></label>
+          <label>Máx. usuários<input name="maxUsers" type="number" min="1" value="10" required></label>
+          <label>Máx. projetos<input name="maxProjects" type="number" min="1" value="5" required></label>
+          <label>Máx. dispositivos<input name="maxDevices" type="number" min="1" value="2" required></label>
+          <label>Módulos (vírgula)<input name="modules" value="obra360" required></label>
+          <label>Canais (vírgula)<input name="channels" value="mobile,desktop" required></label>
+          <div class="form-actions"><button class="btn primary" data-write type="submit">Criar empresa/licença</button></div>
+        </form>
+      </details>
+      <div id="obraTable"></div>
     </div>
-  </section>
+  </details>
 
-  <section class="panel">
-    <h2>Loja Online</h2><p>Crie tenants e administre plano, usuários, validade, bloqueio e desbloqueio pela autoridade da Loja.</p>
-    <form id="lojaCreateForm" class="form-grid">
-      <label>Empresa<input name="companyName" required></label>
-      <label>Administrador<input name="adminName" required></label>
-      <label>E-mail admin<input name="adminEmail" type="email" required></label>
-      <label>Plano<input name="plan" value="6_MONTHS" required></label>
-      <label>Duração<select name="months"><option value="1">1 mês</option><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
-      <label>Máx. usuários<input name="maxUsers" type="number" min="1" value="5" required></label>
-      <div class="form-actions"><button class="btn primary" data-write type="submit">Criar loja</button></div>
-    </form>
-    <div id="lojaTable"></div>
-  </section>
+  <details id="debora-lactacao" class="panel product-panel anchor-target">
+    <summary class="product-summary"><span class="product-summary-main"><h2>Débora Lactação</h2><p>Licenciamento, atividade, usuários, vendas, parceiros e cupons.</p></span><span class="product-summary-meta">Gerenciar</span></summary>
+    <div class="panel-body">
+      <details id="deboraLicenseDetails" class="action-panel">
+        <summary>Gerenciar acesso</summary>
+        <form id="deboraLicenseForm" class="form-grid">
+          <label>E-mail<input name="email" type="email" required></label>
+          <label>Origem<select name="acquisitionChannel" required><option value="" selected disabled>Selecione o canal</option><option value="mercado_livre">Mercado Livre</option><option value="direct_sale">Venda direta</option><option value="shopee">Shopee</option><option value="gumroad">Gumroad</option><option value="courtesy">Cortesia</option><option value="partnership">Parceria</option><option value="other">Outro</option></select></label>
+          <label>Pagamento<select name="paymentStatus" required><option value="" selected disabled>Selecione o pagamento</option><option value="paid">Pago</option><option value="pending">Pendente</option><option value="unpaid">Não pago</option><option value="not_applicable">Não se aplica</option></select></label>
+          <label>Valor recebido<input name="amount" inputmode="decimal" placeholder="80,00"></label>
+          <label>Referência do pedido<input name="externalOrderRef" maxlength="160" placeholder="MLB..., pedido, comprovante..."></label>
+          <div class="form-actions">
+            <button class="btn" data-write data-debora-action="status" type="button">Consultar</button>
+            <button class="btn primary" data-write data-debora-action="grant" type="button">Liberar / renovar +6m</button>
+            <button class="btn danger" data-write data-debora-action="revoke" type="button">Revogar</button>
+          </div>
+        </form>
+      </details>
+      <div id="deboraTable"></div>
 
-  <section class="panel"><h2>Auditoria</h2><p>Eventos recentes registrados pelas autoridades de licenciamento.</p><div id="auditTable"></div></section>
+      <div class="subpanel">
+        <h3>Uso e vendas</h3>
+        <p id="deboraObservabilityStatus" class="muted">Carregando atividade da Débora…</p>
+        <div class="metric-grid">
+          <div class="metric"><span>Online agora</span><strong id="deboraOnline">—</strong></div>
+          <div class="metric"><span>Contas totais</span><strong id="deboraAccounts">—</strong></div>
+          <div class="metric"><span>Pro ativos</span><strong id="deboraPro">—</strong></div>
+          <div class="metric"><span>Vendas pagas</span><strong id="deboraPaidSales">—</strong></div>
+          <div class="metric"><span>Receita realizada</span><strong id="deboraRevenue">—</strong></div>
+        </div>
+        <h3>Usuários</h3>
+        <div id="deboraUsersTable"></div>
+        <div class="pager"><button id="deboraUsersPrev" class="btn" type="button">Anterior</button><button id="deboraUsersNext" class="btn" type="button">Próxima</button></div>
+        <div id="deboraActivity" class="activity" hidden></div>
+        <h3>Vendas</h3>
+        <div id="deboraSalesTable"></div>
+        <div class="pager"><button id="deboraSalesPrev" class="btn" type="button">Anterior</button><button id="deboraSalesNext" class="btn" type="button">Próxima</button></div>
+      </div>
+
+      <div class="subpanel">
+        <h3>Parceiros e cupons</h3>
+        <p id="deboraPartnersStatus" class="muted">Carregando parceiros e vendas atribuídas…</p>
+        <details id="deboraPartnerDetails" class="action-panel">
+          <summary>+ Novo parceiro/cupom</summary>
+          <form id="deboraPartnerForm" class="form-grid">
+            <input type="hidden" name="id">
+            <label>Nome<input name="name" required maxlength="160" placeholder="Ana Parceira"></label>
+            <label>Código / cupom<input name="code" required maxlength="64" pattern="[A-Za-z0-9_-]{2,64}" placeholder="ANA15"></label>
+            <label>Tipo<select name="partnerType"><option value="partner">Parceiro</option><option value="influencer">Influenciador</option><option value="campaign">Campanha</option></select></label>
+            <label>Comissão<select name="commissionType"><option value="none">Sem comissão</option><option value="percent">Percentual</option><option value="fixed">Valor fixo</option></select></label>
+            <label>Valor comissão<input name="commissionValue" type="number" min="0" step="0.01" value="0"></label>
+            <label>Desconto<select name="discountType"><option value="none">Sem desconto</option><option value="percent">Percentual</option><option value="fixed">Valor fixo</option></select></label>
+            <label>Valor desconto<input name="discountValue" type="number" min="0" step="0.01" value="0"></label>
+            <label><input name="active" type="checkbox" checked> Código ativo</label>
+            <div class="form-actions"><button class="btn primary" data-write type="submit">Salvar parceiro/cupom</button><button id="deboraPartnerReset" class="btn" type="button">Limpar</button></div>
+          </form>
+        </details>
+        <div id="deboraPartnersTable"></div>
+        <h3>Vendas atribuídas</h3>
+        <div id="deboraPartnerSummary" class="muted"></div>
+        <div id="deboraPartnerSalesTable"></div>
+      </div>
+    </div>
+  </details>
+
+  <details id="loja-online" class="panel product-panel anchor-target">
+    <summary class="product-summary"><span class="product-summary-main"><h2>Loja Online</h2><p>Tenants, plano, usuários, validade, bloqueio e desbloqueio.</p></span><span class="product-summary-meta">Gerenciar</span></summary>
+    <div class="panel-body">
+      <details id="lojaCreateDetails" class="action-panel">
+        <summary>+ Novo tenant</summary>
+        <form id="lojaCreateForm" class="form-grid">
+          <label>Empresa<input name="companyName" required></label>
+          <label>Administrador<input name="adminName" required></label>
+          <label>E-mail admin<input name="adminEmail" type="email" required></label>
+          <label>Plano<input name="plan" value="6_MONTHS" required></label>
+          <label>Duração<select name="months"><option value="1">1 mês</option><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
+          <label>Máx. usuários<input name="maxUsers" type="number" min="1" value="5" required></label>
+          <div class="form-actions"><button class="btn primary" data-write type="submit">Criar loja</button></div>
+        </form>
+      </details>
+      <div id="lojaTable"></div>
+    </div>
+  </details>
+
+  <details id="auditoria" class="panel product-panel anchor-target">
+    <summary class="product-summary"><span class="product-summary-main"><h2>Auditoria</h2><p>Eventos recentes registrados pelas autoridades de licenciamento.</p></span><span class="product-summary-meta">Consultar</span></summary>
+    <div class="panel-body"><div id="auditTable"></div></div>
+  </details>
+
   <div class="footer" id="generatedAt"></div>
 </main>
 <script src="/license-center.js" defer></script>
+<script src="/license-center-ui.js" defer></script>
 </body>
 </html>

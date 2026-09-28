@@ -14,7 +14,7 @@ function id(prefix,seq){return `${prefix}-${seq}`}
 
 const server=http.createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://127.0.0.1').pathname;
-  const file=pathname==='/licenses'?path.join(root,'license-center.html'):pathname==='/license-center.js'?path.join(root,'license-center.js'):null;
+  const file=pathname==='/licenses'?path.join(root,'license-center.html'):pathname==='/license-center.js'?path.join(root,'license-center.js'):pathname==='/license-center-ui.js'?path.join(root,'license-center-ui.js'):null;
   if(!file){res.writeHead(404);res.end('not found');return}
   try{const content=await fs.readFile(file);res.writeHead(200,{'content-type':file.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','cache-control':'no-store'});res.end(content)}catch{res.writeHead(500);res.end('read error')}
 });
@@ -60,17 +60,29 @@ try{
     });
 
     await page.goto(`${base}/licenses`,{waitUntil:'domcontentloaded'});await page.locator('#obraCount').filter({hasText:'0'}).waitFor();
-    const obra=page.locator('#obraCreateForm');await obra.locator('[name=name]').fill(`ARTISYS QA E2E isolated-${viewport.name}`);await obra.locator('[name=adminEmail]').fill(`qa-license-isolated-${viewport.name}@example.test`);await obra.locator('[name=modules]').fill('obra360,rdo');await obra.locator('[name=channels]').fill('mobile,desktop');await obra.locator('button[type=submit]').click();await page.getByText(`ARTISYS QA E2E isolated-${viewport.name}`,{exact:true}).waitFor();
+    for(const panelId of ['obra-na-mao','debora-lactacao','loja-online','auditoria'])if(await page.locator(`#${panelId}`).evaluate(el=>el.open))throw new Error(`${viewport.name}: ${panelId} must start collapsed`);
+
+    await page.locator('#obra-na-mao > summary').click();await page.locator('#obraCreateDetails > summary').click();
+    const obraName=`ARTISYS QA E2E isolated-${viewport.name}`;
+    const obra=page.locator('#obraCreateForm');await obra.locator('[name=name]').fill(obraName);await obra.locator('[name=adminEmail]').fill(`qa-license-isolated-${viewport.name}@example.test`);await obra.locator('[name=modules]').fill('obra360,rdo');await obra.locator('[name=channels]').fill('mobile,desktop');await obra.locator('button[type=submit]').click();await page.locator('#obraTable .table-wrap').getByText(obraName,{exact:true}).waitFor({state:'attached'});
     const createIndex=requests.findIndex(item=>item.method==='POST'&&item.pathname==='/api/license-center/obra/companies');if(createIndex<0||!requests.slice(createIndex+1).some(item=>item.method==='GET'&&item.pathname==='/api/license-center'))throw new Error(`${viewport.name}: obra mutation was not followed by canonical refetch`);
 
-    const debora=page.locator('#deboraLicenseForm');await debora.locator('[name=email]').fill(`qa-license-debora-${viewport.name}@example.test`);await debora.locator('[name=acquisitionChannel]').selectOption('mercado_livre');await debora.locator('[name=paymentStatus]').selectOption('paid');await debora.locator('[name=amount]').fill('80,00');await debora.locator('[name=externalOrderRef]').fill(`MLB-QA-${viewport.name}`);await debora.locator('[data-debora-action=grant]').click();await page.getByText(`qa-license-debora-${viewport.name}@example.test`,{exact:true}).waitFor();
+    await page.locator('#debora-lactacao > summary').click();await page.locator('#deboraLicenseDetails > summary').click();
+    const deboraEmail=`qa-license-debora-${viewport.name}@example.test`;
+    const debora=page.locator('#deboraLicenseForm');await debora.locator('[name=email]').fill(deboraEmail);await debora.locator('[name=acquisitionChannel]').selectOption('mercado_livre');await debora.locator('[name=paymentStatus]').selectOption('paid');await debora.locator('[name=amount]').fill('80,00');await debora.locator('[name=externalOrderRef]').fill(`MLB-QA-${viewport.name}`);await debora.locator('[data-debora-action=grant]').click();await page.locator('#deboraTable .table-wrap').getByText(deboraEmail,{exact:true}).waitFor({state:'attached'});
     const grantRequest=requests.find(item=>item.method==='POST'&&item.pathname==='/api/license-center/debora/license'&&item.body?.action==='grant');if(!grantRequest?.body?.sale?.acquisitionChannel||!grantRequest?.body?.sale?.paymentStatus)throw new Error(`${viewport.name}: Debora grant did not include explicit sale metadata`);
-    const loja=page.locator('#lojaCreateForm');await loja.locator('[name=companyName]').fill(`ARTISYS QA E2E LOJA isolated-${viewport.name}`);await loja.locator('[name=adminName]').fill('QA Admin');await loja.locator('[name=adminEmail]').fill(`qa-license-loja-${viewport.name}@example.test`);await loja.locator('button[type=submit]').click();await page.getByText(`ARTISYS QA E2E LOJA isolated-${viewport.name}`,{exact:true}).waitFor();
 
-    forcedError='qa_scope_violation';await page.locator('#obraTable button[data-action="obra-suspend"]').click();await page.locator('#status').filter({hasText:'qa_scope_violation'}).waitFor();
-    forcedError='write_disabled';await page.locator('#obraTable button[data-action="obra-suspend"]').click();await page.locator('#status').filter({hasText:'write_disabled'}).waitFor();
+    await page.locator('#loja-online > summary').click();await page.locator('#lojaCreateDetails > summary').click();
+    const lojaName=`ARTISYS QA E2E LOJA isolated-${viewport.name}`;
+    const loja=page.locator('#lojaCreateForm');await loja.locator('[name=companyName]').fill(lojaName);await loja.locator('[name=adminName]').fill('QA Admin');await loja.locator('[name=adminEmail]').fill(`qa-license-loja-${viewport.name}@example.test`);await loja.locator('button[type=submit]').click();await page.locator('#lojaTable .table-wrap').getByText(lojaName,{exact:true}).waitFor({state:'attached'});
+
+    if(viewport.width<=700){await page.locator('#obraTable .mobile-records').waitFor();if(await page.locator('#obraTable .mobile-record').count()!==1)throw new Error(`${viewport.name}: mobile table was not converted to record cards`)}
+
+    const obraSuspend=page.locator('#obraTable .table-wrap button[data-action="obra-suspend"]');
+    forcedError='qa_scope_violation';await obraSuspend.evaluate(el=>el.click());await page.locator('#status').filter({hasText:'qa_scope_violation'}).waitFor();
+    forcedError='write_disabled';await obraSuspend.evaluate(el=>el.click());await page.locator('#status').filter({hasText:'write_disabled'}).waitFor();
     data.parity={status:'incomplete',missing:['future.admin.capability']};await page.reload({waitUntil:'domcontentloaded'});await page.locator('#parity').filter({hasText:'future.admin.capability'}).waitFor();if(await page.locator('[data-write]:not([disabled])').count())throw new Error(`${viewport.name}: writes remain enabled with missing parity`);
     results.push({viewport:viewport.name,status:'passed',requests:requests.length});await context.close();
   }
-  const report={status:'passed',generatedAt:new Date().toISOString(),viewports:results,checks:['refetch','debora_sale_metadata','qa_scope_violation','write_disabled','parity']};await fs.mkdir(path.dirname(outFile),{recursive:true});await fs.writeFile(outFile,JSON.stringify(report,null,2)+'\n');console.log(`LICENSE_CENTER_ISOLATED_REPORT=${outFile}`);
+  const report={status:'passed',generatedAt:new Date().toISOString(),viewports:results,checks:['collapsible_panels','mobile_record_cards','refetch','debora_sale_metadata','qa_scope_violation','write_disabled','parity']};await fs.mkdir(path.dirname(outFile),{recursive:true});await fs.writeFile(outFile,JSON.stringify(report,null,2)+'\n');console.log(`LICENSE_CENTER_ISOLATED_REPORT=${outFile}`);
 }finally{if(browser)await browser.close().catch(()=>{});server.close()}

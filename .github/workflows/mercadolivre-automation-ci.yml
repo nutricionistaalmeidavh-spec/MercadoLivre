@@ -20,6 +20,7 @@ on:
       - "admin-cloudflare.html"
       - "license-center.html"
       - "license-center.js"
+      - "license-center-ui.js"
       - "mercadolivre/**"
       - "DESIGN.md"
       - "UX-CONTRACT.md"
