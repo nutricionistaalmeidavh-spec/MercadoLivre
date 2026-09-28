@@ -39,3 +39,33 @@ test('license center exposes administrative actions, Debora observability, partn
   assert.match(script,/parity.*missing|missing.*parity/s);
   assert.match(assets,/!license-center\.js/);
 });
+
+test('license center is mobile-first with collapsible product and action panels',()=>{
+  const html=fs.readFileSync('license-center.html','utf8');
+  const script=fs.readFileSync('license-center.js','utf8');
+
+  assert.match(html,/class="breadcrumbs"/);
+  assert.match(html,/class="section-nav"/);
+  assert.match(html,/href="#obra-na-mao"/);
+  assert.match(html,/href="#debora-lactacao"/);
+  assert.match(html,/href="#loja-online"/);
+  assert.match(html,/href="#auditoria"/);
+
+  assert.match(html,/<details[^>]+id="obra-na-mao"[^>]+class="panel product-panel"/);
+  assert.match(html,/<details[^>]+id="debora-lactacao"[^>]+class="panel product-panel"/);
+  assert.match(html,/<details[^>]+id="loja-online"[^>]+class="panel product-panel"/);
+  assert.match(html,/<details[^>]+id="auditoria"[^>]+class="panel product-panel"/);
+  assert.match(html,/class="product-summary"/);
+
+  assert.match(html,/id="obraCreateDetails"[^>]*class="action-panel"/);
+  assert.match(html,/id="deboraLicenseDetails"[^>]*class="action-panel"/);
+  assert.match(html,/id="deboraPartnerDetails"[^>]*class="action-panel"/);
+  assert.match(html,/id="lojaCreateDetails"[^>]*class="action-panel"/);
+
+  assert.match(html,/\.mobile-records\{display:none\}/);
+  assert.match(html,/@media\(max-width:700px\)[\s\S]*\.desktop-table\{display:none\}[\s\S]*\.mobile-records\{display:grid\}/);
+  assert.match(script,/class="table-wrap desktop-table"/);
+  assert.match(script,/class="mobile-records"/);
+  assert.match(script,/function openPanelFor/);
+  assert.match(script,/openPanelFor\(form\)/);
+});
