@@ -52,10 +52,10 @@ test('license center is mobile-first with collapsible product and action panels'
   assert.match(html,/href="#loja-online"/);
   assert.match(html,/href="#auditoria"/);
 
-  assert.match(html,/<details[^>]+id="obra-na-mao"[^>]+class="panel product-panel"/);
-  assert.match(html,/<details[^>]+id="debora-lactacao"[^>]+class="panel product-panel"/);
-  assert.match(html,/<details[^>]+id="loja-online"[^>]+class="panel product-panel"/);
-  assert.match(html,/<details[^>]+id="auditoria"[^>]+class="panel product-panel"/);
+  assert.match(html,/<details[^>]+id="obra-na-mao"[^>]+class="[^"]*panel product-panel[^"]*"/);
+  assert.match(html,/<details[^>]+id="debora-lactacao"[^>]+class="[^"]*panel product-panel[^"]*"/);
+  assert.match(html,/<details[^>]+id="loja-online"[^>]+class="[^"]*panel product-panel[^"]*"/);
+  assert.match(html,/<details[^>]+id="auditoria"[^>]+class="[^"]*panel product-panel[^"]*"/);
   assert.match(html,/class="product-summary"/);
 
   assert.match(html,/id="obraCreateDetails"[^>]*class="action-panel"/);
