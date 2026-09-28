@@ -42,7 +42,8 @@ test('license center exposes administrative actions, Debora observability, partn
 
 test('license center is mobile-first with collapsible product and action panels',()=>{
   const html=fs.readFileSync('license-center.html','utf8');
-  const script=fs.readFileSync('license-center.js','utf8');
+  const ui=fs.readFileSync('license-center-ui.js','utf8');
+  const assets=fs.readFileSync('.assetsignore','utf8');
 
   assert.match(html,/class="breadcrumbs"/);
   assert.match(html,/class="section-nav"/);
@@ -62,10 +63,12 @@ test('license center is mobile-first with collapsible product and action panels'
   assert.match(html,/id="deboraPartnerDetails"[^>]*class="action-panel"/);
   assert.match(html,/id="lojaCreateDetails"[^>]*class="action-panel"/);
 
-  assert.match(html,/\.mobile-records\{display:none\}/);
-  assert.match(html,/@media\(max-width:700px\)[\s\S]*\.desktop-table\{display:none\}[\s\S]*\.mobile-records\{display:grid\}/);
-  assert.match(script,/class="table-wrap desktop-table"/);
-  assert.match(script,/class="mobile-records"/);
-  assert.match(script,/function openPanelFor/);
-  assert.match(script,/openPanelFor\(form\)/);
+  assert.match(html,/\.desktop-table\{display:none\}/);
+  assert.match(html,/\.mobile-records\{display:grid\}/);
+  assert.match(html,/@media\(min-width:701px\)[\s\S]*\.desktop-table\{display:block\}[\s\S]*\.mobile-records\{display:none\}/);
+  assert.match(html,/src="\/license-center-ui\.js"/);
+  assert.match(ui,/className='mobile-records'/);
+  assert.match(ui,/function openPanelFor/);
+  assert.match(ui,/openPanelFor\(form\)/);
+  assert.match(assets,/!license-center-ui\.js/);
 });
