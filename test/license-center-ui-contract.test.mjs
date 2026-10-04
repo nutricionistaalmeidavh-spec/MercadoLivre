@@ -65,7 +65,7 @@ test('license center is mobile-first with collapsible product and action panels'
 
   assert.match(html,/\.desktop-table\{display:none\}/);
   assert.match(html,/\.mobile-records\{display:grid[^}]*\}/);
-  assert.match(html,/@media\(min-width:701px\)[\s\S]*\.desktop-table\{display:block\}[\s\S]*\.mobile-records\{display:none\}/);
+  assert.match(html,/@media\(min-width:701px\)[\s\S]*\.desktop-table\{display:block\}[\s\S]*\.mobile-records(?:,\.audit-timeline)?\{display:none\}/);
   assert.match(html,/src="\/license-center-ui\.js"/);
   assert.match(ui,/className='mobile-records'/);
   assert.match(ui,/function buildAuditTimeline/);
