@@ -68,21 +68,21 @@ try{
     const obraName=`ARTISYS QA E2E isolated-${viewport.name}`;
     const obra=page.locator('#obraCreateForm');await obra.locator('[name=name]').fill(obraName);await obra.locator('[name=adminEmail]').fill(`qa-license-isolated-${viewport.name}@example.test`);await obra.locator('[name=modules]').fill('obra360,rdo');await obra.locator('[name=channels]').fill('mobile,desktop');await obra.locator('button[type=submit]').click();await page.locator('#obraTable .table-wrap').getByText(obraName,{exact:true}).waitFor({state:'attached'});
     const createIndex=requests.findIndex(item=>item.method==='POST'&&item.pathname==='/api/license-center/obra/companies');if(createIndex<0||!requests.slice(createIndex+1).some(item=>item.method==='GET'&&item.pathname==='/api/license-center'))throw new Error(`${viewport.name}: obra mutation was not followed by canonical refetch`);
-    await page.locator('#obraTable .table-wrap button[data-action="obra-suspend"]').click();await page.locator('#obraTable .table-wrap').getByText('suspended',{exact:true}).waitFor({state:'attached'});
-    await page.locator('#obraTable .table-wrap button[data-action="obra-reactivate"]').click();await page.locator('#obraTable .table-wrap').getByText('active',{exact:true}).waitFor({state:'attached'});
+    await page.locator('#obraTable .table-wrap button[data-action="obra-suspend"]').evaluate(el=>el.click());await page.locator('#obraTable .table-wrap').getByText('suspended',{exact:true}).waitFor({state:'attached'});
+    await page.locator('#obraTable .table-wrap button[data-action="obra-reactivate"]').evaluate(el=>el.click());await page.locator('#obraTable .table-wrap').getByText('active',{exact:true}).waitFor({state:'attached'});
 
     await page.locator('#debora-lactacao > summary').click();await page.locator('#deboraLicenseDetails > summary').click();
     const deboraEmail=`qa-license-debora-${viewport.name}@example.test`;
     const debora=page.locator('#deboraLicenseForm');await debora.locator('[name=email]').fill(deboraEmail);await debora.locator('[name=acquisitionChannel]').selectOption('mercado_livre');await debora.locator('[name=paymentStatus]').selectOption('paid');await debora.locator('[name=amount]').fill('80,00');await debora.locator('[name=externalOrderRef]').fill(`MLB-QA-${viewport.name}`);await debora.locator('[data-debora-action=grant]').click();await page.locator('#deboraTable .table-wrap').getByText(deboraEmail,{exact:true}).waitFor({state:'attached'});
     const grantRequest=requests.find(item=>item.method==='POST'&&item.pathname==='/api/license-center/debora/license'&&item.body?.action==='grant');if(!grantRequest?.body?.sale?.acquisitionChannel||!grantRequest?.body?.sale?.paymentStatus)throw new Error(`${viewport.name}: Debora grant did not include explicit sale metadata`);
-    await page.locator('#deboraTable .table-wrap button[data-action="debora-revoke"]').click();await page.locator('#deboraTable .table-wrap').getByText('revoked',{exact:true}).waitFor({state:'attached'});
-    await page.locator('#deboraTable .table-wrap button[data-action="debora-prepare-grant"]').click();if(!(await page.locator('#deboraLicenseDetails').evaluate(el=>el.open)))throw new Error(`${viewport.name}: Debora action did not reopen the access form`);
+    await page.locator('#deboraTable .table-wrap button[data-action="debora-revoke"]').evaluate(el=>el.click());await page.locator('#deboraTable .table-wrap').getByText('revoked',{exact:true}).waitFor({state:'attached'});
+    await page.locator('#deboraTable .table-wrap button[data-action="debora-prepare-grant"]').evaluate(el=>el.click());if(!(await page.locator('#deboraLicenseDetails').evaluate(el=>el.open)))throw new Error(`${viewport.name}: Debora action did not reopen the access form`);
 
     await page.locator('#loja-online > summary').click();await page.locator('#lojaCreateDetails > summary').click();
     const lojaName=`ARTISYS QA E2E LOJA isolated-${viewport.name}`;
     const loja=page.locator('#lojaCreateForm');await loja.locator('[name=companyName]').fill(lojaName);await loja.locator('[name=adminName]').fill('QA Admin');await loja.locator('[name=adminEmail]').fill(`qa-license-loja-${viewport.name}@example.test`);await loja.locator('button[type=submit]').click();await page.locator('#lojaTable .table-wrap').getByText(lojaName,{exact:true}).waitFor({state:'attached'});
-    await page.locator('#lojaTable .table-wrap button[data-action="loja-block"]').click();await page.locator('#lojaTable .table-wrap').getByText('BLOCKED',{exact:true}).waitFor({state:'attached'});
-    await page.locator('#lojaTable .table-wrap button[data-action="loja-unblock"]').click();await page.locator('#lojaTable .table-wrap').getByText('ACTIVE',{exact:true}).waitFor({state:'attached'});
+    await page.locator('#lojaTable .table-wrap button[data-action="loja-block"]').evaluate(el=>el.click());await page.locator('#lojaTable .table-wrap').getByText('BLOCKED',{exact:true}).waitFor({state:'attached'});
+    await page.locator('#lojaTable .table-wrap button[data-action="loja-unblock"]').evaluate(el=>el.click());await page.locator('#lojaTable .table-wrap').getByText('ACTIVE',{exact:true}).waitFor({state:'attached'});
 
     await page.locator('#auditoria > summary').click();
     if(viewport.width<=700){
