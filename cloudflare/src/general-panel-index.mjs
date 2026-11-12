@@ -1,5 +1,7 @@
 import baseWorker from "./site-catalog-index.mjs";
 import { decryptJson } from "./crypto.mjs";
+import { listSellers } from './repository.mjs';
+import { syncCommerceOrder } from './commerce-bridge.mjs';
 import { handleLicenseCenterApi, proxyLicenseCenterRead, proxyLicenseCenterWrite, serveLicenseCenterPage } from "./license-center.mjs";
 
 const ADMIN_COOKIE = "artisys_admin";
@@ -107,6 +109,14 @@ export default {
       }
       if (url.pathname === "/licenses" || url.pathname === "/licenses/") return await serveLicenseCenter(request, env);
       if (url.pathname === "/api/license-center" || url.pathname.startsWith("/api/license-center/")) return await handleLicenseCenter(request, env);
+      if (url.pathname === '/api/commerce/sync') {
+        const denied=await requireAdmin(request,env);
+        if(denied)return denied;
+        const sellers=await listSellers(env);
+        if(sellers.length!==1)return json({error:'seller_not_uniquely_connected'},409);
+        const result=await syncCommerceOrder(env,request,String(sellers[0].seller_id));
+        return json(result,result.status||200);
+      }
       return baseWorker.fetch(request, env, ctx);
     } catch (error) {
       console.error("general_panel_worker_error", { path: url.pathname, message: error?.message || String(error) });
