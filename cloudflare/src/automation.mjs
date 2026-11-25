@@ -212,7 +212,8 @@ export async function processOrderEvent(env, payload) {
   }
 
   const deliveryContext = buildDeliveryContext(order, rules, configured.text);
-  const policy = await fetchMessagePolicy(env, order.packId, sellerId, configured.text);
+  const conversationId = order.packId || orderId;
+  const policy = await fetchMessagePolicy(env, conversationId, sellerId, configured.text);
   if (!policy.allowed) {
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "SKIPPED", reason: policy.reason });
     await auditSkipped(env, sellerId, orderId, policy.reason, { item_ids: order.itemIds });
@@ -229,15 +230,15 @@ export async function processOrderEvent(env, payload) {
 
   const mode = String(env.ML_AUTOMATION_MODE || "dry-run").toLowerCase();
   if (mode !== "production") {
-    await recordMessageAttempt(env, { idempotencyKey: key, orderId, packId: order.packId, status: "DRY_RUN", httpStatus: 0, response: { reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" }, moderationStatus: "not_sent", context: deliveryContext });
+    await recordMessageAttempt(env, { idempotencyKey: key, orderId, packId: conversationId, status: "DRY_RUN", httpStatus: 0, response: { reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" }, moderationStatus: "not_sent", context: deliveryContext });
     await setRun(env, { idempotencyKey: key, sellerId, orderId, state: "DRY_RUN", reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT" });
     await auditOutcome(env, { sellerId, orderId, action: POST_SALE_ACTIONS.dryRun, reason: "CONFIGURED_MESSAGE_WOULD_BE_SENT", metadata: { item_ids: order.itemIds, buyer: deliveryContext.buyer } });
-    return { dryRun: true, orderId, packId: order.packId, itemIds: order.itemIds, charLimit: policy.charLimit };
+    return { dryRun: true, orderId, packId: conversationId, itemIds: order.itemIds, charLimit: policy.charLimit };
   }
 
   let response;
   try {
-    response = await sendOtherMessage(env, { packId: order.packId, sellerId, orderId, text: policy.text, idempotencyKey: key, deliveryContext });
+    response = await sendOtherMessage(env, { packId: conversationId, sellerId, orderId, text: policy.text, idempotencyKey: key, deliveryContext });
   } catch (error) {
     const moderated = Boolean(error?.moderationStatus && error.moderationStatus !== "unknown");
     const reason = moderated ? ALERT_REASON.moderated : ALERT_REASON.sendFailed;

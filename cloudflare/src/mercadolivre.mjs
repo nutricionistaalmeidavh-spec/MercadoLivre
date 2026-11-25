@@ -48,7 +48,6 @@ export function evaluateOrderEligibility(order) {
   if (order.cancelled) return { eligible: false, reason: "ORDER_CANCELLED" };
   if (order.fraudRisk) return { eligible: false, reason: "FRAUD_RISK" };
   if (!order.paymentApproved) return { eligible: false, reason: order.paymentRejected ? "PAYMENT_REJECTED" : "PAYMENT_NOT_APPROVED" };
-  if (!order.packId) return { eligible: false, reason: "PACK_ID_MISSING" };
   if (!Array.isArray(order.itemIds) || !order.itemIds.length) return { eligible: false, reason: "ORDER_ITEMS_MISSING" };
   return { eligible: true, reason: "ELIGIBLE" };
 }
